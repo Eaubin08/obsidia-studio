@@ -24,9 +24,13 @@ function cognitiveSourceCard(postId) {
   if (!receipt) return "";
   const label = receipt.source === "BRODY_NATIVE" ? "Brody seul" :
     receipt.source === "GOVERNED_MODEL_PROJECTION" ? "Brody + contribution Qwen gouvernée" :
+    receipt.source === "STUDIO_DETERMINISTIC_TEMPLATE" ? "Trame locale Studio — sans IA" :
+    receipt.source === "USER_SOURCE_TEXT_ONLY" ? "Texte utilisateur — sans IA" :
+    receipt.source === "BRODY_DIRECT_UNVERIFIED" ? "Brody natif — contenu non vérifié" :
     "Origine cognitive non vérifiée";
-  const synthesis = receipt.brody_post_model_synthesis_proven === true
-    ? "Synthèse post-modèle attestée" : "Synthèse Brody post-Qwen non démontrée";
+  const noAi = receipt.source === "STUDIO_DETERMINISTIC_TEMPLATE" || receipt.source === "USER_SOURCE_TEXT_ONLY";
+  const synthesis = noAi ? "Aucune génération cognitive effectuée" :
+    receipt.brody_post_model_synthesis_proven === true ? "Synthèse post-modèle attestée" : "Synthèse Brody post-Qwen non démontrée";
   return `<div class="panel"><h3>Provenance cognitive</h3><p><b>${esc(label)}</b></p>
     <p class="muted">${esc(synthesis)} · Brouillon à valider humainement · Aucune publication autorisée par ce reçu.</p></div>`;
 }
@@ -271,8 +275,10 @@ async function writeIt(btn, idea, template) {
     if (r.warning) toast(r.warning);
     const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
     await putPost({text: cleaned, status: CUR.status === "idée" ? "brouillon" : CUR.status});
-    btn.textContent = "Création des images…";
-    CUR = await api(`/api/posts/${CUR.id}/variants`, {method: "POST", body: JSON.stringify({})});
+    if (r.provenance?.source !== "STUDIO_DETERMINISTIC_TEMPLATE") {
+      btn.textContent = "Création des images…";
+      CUR = await api(`/api/posts/${CUR.id}/variants`, {method: "POST", body: JSON.stringify({})});
+    }
   } catch (e) { toast("Erreur : " + e.message); }
   pagePost();
 }
@@ -362,7 +368,9 @@ async function wizard3(btn) {
       if (r.warning) toast(r.warning);
       const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
       await putPost({text: cleaned, status: "brouillon", hook: cleaned.split("\n")[0].slice(0, 120)});
-      CUR = await api(`/api/posts/${p.id}/variants`, {method: "POST", body: JSON.stringify({})});
+      if (r.provenance?.source !== "STUDIO_DETERMINISTIC_TEMPLATE") {
+        CUR = await api(`/api/posts/${p.id}/variants`, {method: "POST", body: JSON.stringify({})});
+      }
     } else toast("Obsidia n'a pas rendu de texte : réessaie depuis le post");
   } catch (e) { toast("Erreur : " + e.message); }
   closeModal(); EDITING = false; go("post");
