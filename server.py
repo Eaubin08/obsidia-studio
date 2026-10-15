@@ -253,7 +253,26 @@ def generate(body: GenIn):
         # they are not user instructions and must not be mixed into the
         # pre-inference routing request. Only the explicit editorial task goes
         # to the governed ingress. The old Brody path is unchanged.
-        routed_prompt = prompt if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1" else _studio_context() + prompt
+        if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1":
+            # Keep this pre-inference request aligned with the previously
+            # observed ALLOW → LOCAL_MODEL_GATE route. Generic formatting
+            # instructions (notably "statut de preuve") can be classified
+            # by AMD as a local status query, bypassing inference entirely.
+            # Never fabricate proof claims or turn HOLD into ALLOW.
+            subject = body.idea.strip()
+            if not subject:
+                raise HTTPException(400, "idée requise")
+            routed_prompt = (
+                f"Rédige une courte publication {net['label']} en français sur : {subject}. "
+                "N'invente aucun fait ou chiffre. Ne publie rien."
+            )
+            if body.source_text.strip():
+                routed_prompt += (
+                    "\\nAdapte ce texte existant sans ajouter de faits :\\n"
+                    + body.source_text.strip()[:6000]
+                )
+        else:
+            routed_prompt = _studio_context() + prompt
         out = studio_ai.generate(routed_prompt)
     except studio_ai.InferenceError as exc:
         raise HTTPException(503, str(exc)) from exc
