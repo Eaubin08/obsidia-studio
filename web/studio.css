@@ -192,3 +192,21 @@ textarea.doc{min-height:60vh;font-family:Consolas,monospace;font-size:13px;margi
 @media(max-width:1150px){.week{grid-template-columns:repeat(7,170px);overflow-x:auto}.postview,.two,.hero{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){.side{position:static;width:auto}.wrap{margin-left:0}main{padding:18px 16px}}
 .hero .st{align-self:flex-start}
+
+
+/* Atelier éditorial — colonnes de suivi inspirées du Kanban */
+.atelier-tools .row{align-items:center}
+.atelier-tools input{flex:2;min-width:220px}
+.atelier-tools select{flex:1;min-width:150px}
+.atelier-board{display:grid;grid-template-columns:repeat(5,minmax(195px,1fr));gap:12px;align-items:start;overflow-x:auto;padding-bottom:16px}
+.atelier-col{min-width:195px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;max-height:72vh;overflow-y:auto}
+.atelier-col h3{display:flex;justify-content:space-between;align-items:center;text-transform:capitalize;font-size:15px;padding:4px 4px 10px;border-bottom:1px solid var(--line)}
+.atelier-card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+.atelier-card .net{font-size:12px;margin-bottom:6px}
+.atelier-title{display:block;text-align:left;width:100%;border:0;background:none;color:var(--text);font:600 14px/1.4 inherit;cursor:pointer;overflow-wrap:anywhere;padding:0}
+.atelier-title:hover{color:var(--accent)}
+.atelier-actions{display:flex;gap:6px;align-items:center;margin-top:12px}
+.atelier-actions select{min-width:0;flex:1;font-size:12px;padding:7px 5px}
+.atelier-actions .b{white-space:nowrap}
+@media(max-width:1250px){.atelier-board{grid-template-columns:repeat(5,215px)}}
+@media(max-width:700px){.atelier-board{grid-template-columns:repeat(5,205px)}}
