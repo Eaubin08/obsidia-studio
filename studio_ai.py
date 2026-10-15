@@ -54,6 +54,21 @@ def generate(prompt, timeout=600):
         raise InferenceError("Stack IA locale indisponible ou réponse incompatible : " + str(exc)[:240]) from exc
 
 
+def probe(timeout=2):
+    """Read-only model endpoint discovery; never generates text or launches a process."""
+    cfg = config()
+    try:
+        endpoint = _endpoint(cfg)
+        url = endpoint.removesuffix("/chat/completions") + "/models"
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            payload = json.loads(response.read(100_000).decode("utf-8"))
+        models = [str(m.get("id", "")) for m in payload.get("data", []) if isinstance(m, dict)]
+        return {"reachable": True, "models": models[:30], "message": "Serveur local joignable."}
+    except (InferenceError, OSError, ValueError, TypeError, urllib.error.URLError) as exc:
+        return {"reachable": False, "models": [], "message": str(exc)[:200]}
+
+
 def status():
     cfg = config()
     try:
