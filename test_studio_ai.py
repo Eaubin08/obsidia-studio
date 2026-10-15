@@ -52,6 +52,27 @@ class LocalAIContractTests(unittest.TestCase):
             with self.assertRaises(studio_ai.InferenceError):
                 studio_ai.generate("Rédige")
 
+    def test_ingress_opt_in_off_by_default(self):
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "0"}):
+            with patch.object(studio_ai, "_call", return_value={"response": "<POST>Bonjour</POST>"}) as call:
+                self.assertEqual(studio_ai.generate("Rédige"), "<POST>Bonjour</POST>")
+                call.assert_called_once()
+
+    def test_ingress_requires_explicit_enable(self):
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1",
+                                      "OBSIDIA_STUDIO_ENABLE_INGRESS": "0"}):
+            with self.assertRaises(studio_ai.InferenceError):
+                studio_ai.generate("Rédige")
+
+    def test_ingress_output_must_be_editorial(self):
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1",
+                                      "OBSIDIA_STUDIO_ENABLE_INGRESS": "1"}):
+            with patch.object(studio_ai, "_ingress_call", return_value={
+                "status": "HOLD", "response": "no draft", "emits_act": False
+            }):
+                with self.assertRaisesRegex(studio_ai.InferenceError, "sans artefact"):
+                    studio_ai.generate("Rédige")
+
     def test_default_status_is_configuration_only(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
             st = studio_ai.status()
