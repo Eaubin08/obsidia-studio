@@ -1,7 +1,7 @@
 import unittest
 
 from editorial_intent import explanatory_editorial_request
-from patch_local_os_trad import OLD, NEW, patch_source
+from patch_local_os_trad import patch_source
 
 
 class EditorialIntentTests(unittest.TestCase):
@@ -18,20 +18,28 @@ class EditorialIntentTests(unittest.TestCase):
             explanatory_editorial_request("  ")
 
     def test_patch_is_strict_and_compiles(self):
-        sample = "import re\n\ndef check(low, flags, _action_negation=False):\n" + OLD + "    return flags\n"
+        sample = (
+            "import re\n"
+            "def _risk_flags(text):\n"
+            "    low = text.lower()\n"
+            "    flags = []\n"
+            "    if 'agir' in low:\n"
+            "        flags.append('action_request')\n"
+            "    return flags\n"
+        )
         patched = patch_source(sample)
-        self.assertEqual(patched.count(NEW), 1)
-        space = {}
-        exec(compile(patched, "<test-patch>", "exec"), space)
-        def flagged(x):
-            return "action_request" in space["check"](x.lower(), [])
+        self.assertIn("_studio_explanatory_action_filter(text, flags)", patched)
+        namespace = {}
+        exec(compile(patched, "<test-patch>", "exec"), namespace)
+        def flagged(text):
+            return "action_request" in namespace["_risk_flags"](text)
         self.assertFalse(flagged("Pourquoi une IA doit vérifier avant d'agir ?"))
-        self.assertFalse(flagged("Comment comprendre sans agir ?"))
         self.assertTrue(flagged("Agir maintenant."))
-        self.assertTrue(flagged("Exécute cette action maintenant."))
-        self.assertTrue(flagged("Lance le paiement."))
-        self.assertTrue(flagged("Write memory."))
-        self.assertFalse(flagged("Une explication sur la gouvernance cognitive."))
+        self.assertTrue(flagged("Pourquoi une IA agit ? Publie maintenant et agir."))
+        self.assertTrue(flagged("Pourquoi agir ? Exécute le virement."))
+        self.assertFalse(flagged("Comment expliquer l'importance d'agir ?"))
+        with self.assertRaisesRegex(RuntimeError, "ALREADY_PATCHED"):
+            patch_source(patched)
 
     def test_incompatible_patch_fails_closed(self):
         with self.assertRaisesRegex(RuntimeError, "SOURCE_MISMATCH"):
