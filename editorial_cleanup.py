@@ -39,4 +39,17 @@ def clean_editorial_draft(text: str) -> str:
         else:
             clean = body
             clean = _OUTRO.sub("", clean).strip()
+    # Model sometimes echoes the prompt constraint after the closing quote.
+    # Strip only a known *standalone* instruction, not ordinary authored prose.
+    clean = re.sub(
+        r'\\s+N[’\']invente aucun fait ou chiffre\\.?\\s*,
+        "", clean, flags=re.I,
+    ).strip()
+    # A complete externally quoted post (possibly followed by an echoed
+    # instruction) can be unwrapped without changing its actual words.
+    if len(clean) >= 2 and (
+        (clean.startswith('"') and clean.endswith('"'))
+        or (clean.startswith("«") and clean.endswith("»"))
+    ):
+        clean = clean[1:-1].strip()
     return clean.strip()
