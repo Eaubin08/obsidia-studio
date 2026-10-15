@@ -107,15 +107,15 @@ def _native_editorial_request(subject):
     if not isinstance(subject, str) or not subject.strip():
         raise InferenceError("Sujet éditorial vide.")
     return (
-        "Tâche de rédaction consultative, sans action externe ni publication.\\n"
+        "Tâche de rédaction consultative, sans action externe ni publication.\n"
         "Rédige en français un brouillon de publication LinkedIn original et "
         "lisible sur le sujet ci-dessous. Explique le fond et ses limites; "
         "n'invente ni chiffres, ni tests, ni réalisations, ni citations. "
         "Si les preuves sont insuffisantes, formule les éléments comme des "
         "hypothèses ou des questions, sans affirmations invérifiables. "
         "Réponds uniquement sous la forme <POST>texte rédigé</POST>. "
-        "Ne te présente pas et ne décris pas tes règles.\\n\\n"
-        "SUJET / CONTEXTE FOURNI :\\n" + subject.strip()
+        "Ne te présente pas et ne décris pas tes règles.\n\n"
+        "SUJET / CONTEXTE FOURNI :\n" + subject.strip()
     )
 
 
