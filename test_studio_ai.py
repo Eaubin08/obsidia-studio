@@ -24,9 +24,30 @@ class LocalAIContractTests(unittest.TestCase):
         with patch.object(studio_ai, "_call", return_value={"response": "<POST>Bonjour</POST>", "readonly": True}) as call:
             self.assertEqual(studio_ai.generate("Rédige"), "<POST>Bonjour</POST>")
         data = call.call_args.args[0]
-        self.assertEqual(data["message"], "Rédige")
+        self.assertIn("Rédige", data["message"])
+        self.assertIn("<POST>", data["message"])
+        self.assertIn("sans action externe ni publication", data["message"])
         self.assertFalse(data["allow_provider"])
         self.assertEqual(data["language"], "fr")
+
+    def test_native_request_preserves_topic_and_no_fabrication(self):
+        subject = "Pourquoi comprendre avant d'agir ?"
+        message = studio_ai._native_editorial_request(subject)
+        self.assertIn(subject, message)
+        self.assertIn("n'invente ni chiffres", message)
+        self.assertIn("\\n\\nSUJET / CONTEXTE FOURNI :\\n", message)
+        with self.assertRaises(studio_ai.InferenceError):
+            studio_ai._native_editorial_request(" ")
+
+    def test_ingress_receives_unmodified_subject(self):
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1",
+                                      "OBSIDIA_STUDIO_ENABLE_INGRESS": "1"}):
+            with patch.object(studio_ai, "_ingress_call", return_value={
+                "status": "HOLD", "emits_act": False
+            }) as ingress:
+                with self.assertRaises(studio_ai.InferenceError):
+                    studio_ai.generate("Sujet intact")
+                self.assertEqual(ingress.call_args.args[0], "Sujet intact")
 
     def test_reject_act(self):
         with patch.object(studio_ai, "_call", return_value={"response": "texte", "emits_act": True}):
