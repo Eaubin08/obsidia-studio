@@ -24,7 +24,7 @@ def config():
 def _endpoint(cfg):
     from urllib.parse import urlparse
     parsed = urlparse(cfg["base_url"])
-    if parsed.scheme != "http" or parsed.netloc not in ALLOWED_HOSTS:
+    if parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1") or parsed.username or parsed.password:
         raise InferenceError("Seuls les services HTTP locaux (localhost/127.0.0.1) sont autorisés.")
     if not parsed.path.endswith("/v1"):
         raise InferenceError("L'URL doit désigner la racine /v1 d'un serveur compatible OpenAI.")
