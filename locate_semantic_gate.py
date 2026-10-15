@@ -60,9 +60,10 @@ def main():
         print("\\n=== SEMANTIC_PREDICATE_REFERENCES ===")
         for i in interesting[:35]:
             print(f"{i + 1}: {lines[i][:250]}")
-        print("\\n=== BRODY_GATE_CONTEXT_LINES_850_990 ===")
-        for i in range(849, min(990, len(lines))):
-            print(f"{i + 1}: {lines[i][:260]}")
+        for first, last, label in [(635, 720, "SEMANTIC_RESOLUTION_DEFINITION"), (745, 800, "SEMANTIC_SIGNAL_OUTPUT"), (1010, 1075, "POST_GATE_CONDITIONS")]:
+            print("\\n=== " + label + " ===")
+            for i in range(first - 1, min(last, len(lines))):
+                print(f"{i + 1}: {lines[i][:260]}")
     print("VERDICT=SEMANTIC_GATE_SOURCE_LOCATED")
 
 
