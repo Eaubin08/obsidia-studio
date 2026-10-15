@@ -347,13 +347,80 @@ async function wizard3(btn) {
 }
 
 // ============================================================ IDÉES (suggestions, journal, campagnes, trimestre)
-let IDEATAB = "sugg";
+let IDEATAB = "atelier";
+let ATELIER_FILTER = {network: "", search: ""};
 async function pageIdeas(tab) {
   if (tab) IDEATAB = tab;
   $("main").innerHTML = `<div class="page-head"><h1>Idées</h1><p class="muted">Ce qui nourrit tes posts : des idées, des faits réels, des campagnes.</p></div>
-    <div class="tabs">${[["sugg", "Suggestions"], ["journal", "Journal & audit"], ["camp", "Campagnes"], ["quarter", "Trimestre"]].map(([k, l]) => `<button class="${k === IDEATAB ? "on" : ""}" onclick="pageIdeas('${k}')">${l}</button>`).join("")}</div>
+    <div class="tabs">${[["atelier", "Atelier"], ["sugg", "Suggestions"], ["journal", "Journal & audit"], ["camp", "Campagnes"], ["quarter", "Trimestre"]].map(([k, l]) => `<button class="${k === IDEATAB ? "on" : ""}" onclick="pageIdeas('${k}')">${l}</button>`).join("")}</div>
     <div id="ideaBody"></div>`;
-  ({sugg: ideasSugg, journal: ideasJournal, camp: ideasCamp, quarter: ideasQuarter})[IDEATAB]();
+  ({atelier: ideasAtelier, sugg: ideasSugg, journal: ideasJournal, camp: ideasCamp, quarter: ideasQuarter})[IDEATAB]();
+}
+// Tableau éditorial : filtre réseau/texte et changement de statut avec contrôles du serveur.
+async function ideasAtelier() {
+  await refresh();
+  const status = ["idée", "brouillon", "validé", "programmé", "publié"];
+  $("ideaBody").innerHTML = `
+    <div class="panel atelier-tools">
+      <div class="row">
+        <input id="atelierSearch" placeholder="Rechercher un post, un sujet ou une série…" value="${esc(ATELIER_FILTER.search)}" oninput="filterAtelier()">
+        <select id="atelierNetwork" onchange="filterAtelier()">
+          <option value="">Tous les réseaux</option>
+          ${Object.keys(META.networks).map(k => `<option value="${k}" ${k === ATELIER_FILTER.network ? "selected" : ""}>${esc(NL(k))}</option>`).join("")}
+        </select>
+        <button class="b p" style="flex:0 0 auto" onclick="wizard()">＋ Nouveau post</button>
+      </div>
+      <p class="muted">Les déplacements ne publient rien. La validation passe par les vérifications du Studio.</p>
+    </div>
+    <div class="atelier-board" id="atelierBoard"></div>`;
+  renderAtelier(status);
+}
+function filterAtelier() {
+  ATELIER_FILTER = {network: $("atelierNetwork").value, search: $("atelierSearch").value};
+  renderAtelier();
+}
+function renderAtelier() {
+  const board = $("atelierBoard"); if (!board) return;
+  const q = ATELIER_FILTER.search.toLocaleLowerCase("fr");
+  const matches = POSTS.filter(p => (!ATELIER_FILTER.network || p.network === ATELIER_FILTER.network) &&
+    (!q || [p.hook, p.text, p.series, p.notes].some(v => String(v || "").toLocaleLowerCase("fr").includes(q))));
+  const status = ["idée", "brouillon", "validé", "programmé", "publié"];
+  board.innerHTML = status.map(st => {
+    const ps = matches.filter(p => p.status === st).sort((a,b) => (a.planned || "9999").localeCompare(b.planned || "9999"));
+    return `<section class="atelier-col"><h3>${esc(st)} <span class="tag">${ps.length}</span></h3>
+      ${ps.map(p => `<article class="atelier-card">
+        <div class="net" style="color:${NC(p.network)}">● ${esc(NL(p.network))} ${p.planned ? "· " + esc(p.planned) : "· sans date"}</div>
+        <button class="atelier-title" onclick="openPost('${p.id}')">${esc(first(p))}</button>
+        ${p.check_flag ? `<div class="bad" style="font-size:12px">À corriger : ${esc(p.check_flag)}</div>` : ""}
+        <div class="atelier-actions"><button class="b small" onclick="openPost('${p.id}')">Ouvrir</button>
+          <select aria-label="Changer le statut" onchange="atelierSetStatus('${p.id}',this)">
+            ${status.map(x => `<option value="${x}" ${x === st ? "selected" : ""}>${esc(x)}</option>`).join("")}
+          </select></div>
+      </article>`).join("") || '<p class="muted">Aucun post.</p>'}</section>`;
+  }).join("");
+}
+async function atelierSetStatus(id, select) {
+  const p = POSTS.find(x => x.id === id); if (!p) return;
+  const next = select.value;
+  select.disabled = true;
+  // Un post ne doit pas être déclaré publié par un changement rapide de colonne.
+  if (next === "publié" && p.status !== "publié") {
+    select.value = p.status;
+    select.disabled = false;
+    toast("Ouvre le post et utilise « Marquer comme publié » après publication réelle.");
+    return;
+  }
+  if (next === p.status) { select.disabled = false; return; }
+  try {
+    await api(`/api/posts/${id}`, {method: "PUT", body: JSON.stringify({...p, status: next})});
+    await refresh();
+    renderAtelier();
+    toast("Statut modifié : " + next);
+  } catch (e) {
+    select.value = p.status;
+    select.disabled = false;
+    toast("Statut inchangé : " + e.message);
+  }
 }
 function ideasSugg() {
   $("ideaBody").innerHTML = `<div class="panel"><div class="row"><input id="sAsk" placeholder="Un angle particulier ? (facultatif) ex. des idées Instagram autour de Brody"><button class="b p" style="flex:0 0 auto" onclick="suggest(this)">Proposer 6 idées</button></div></div><div class="ideas" id="sOut"></div>`;
