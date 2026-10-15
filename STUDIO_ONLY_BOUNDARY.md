@@ -1,20 +1,17 @@
 # STUDIO_ONLY_BOUNDARY
 
-Write scope: **Eaubin08/obsidia-studio only**.
+**Only authorized write target: Eaubin08/obsidia-studio.**
 
-- Do not edit, patch, commit, push, or run mutation scripts against Jarvis,
-  Brody, kernel, or any sibling checkout.
-- Other repositories are read-only references; integration uses their existing
-  public interfaces only.
-- `patch_local_os_trad.py` and `patch_local_unknown_surface.py` are
-  **RETIRED**. Do NOT use their `--apply` action again.
-- `studio_local_cleanup.py` is a one-time exact-byte recovery tool. It requires
-  a successful dry run and rejects any external changes beyond the original
-  Studio-created patch. Once the local rollback is confirmed, retire these
-  scripts entirely.
-- Do not treat unit tests as an end-to-end editorial generation result.
-- There is **no** license to bypass HOLD, alter kernel authority, or turn
-  unresolved semantic debt into a fictitious sufficient result.
-- A dependency that requires modifying a sibling repository is an integration
-  defect to solve **inside Studio** (or report as unsupported), not an invitation
-  to change that dependency.
+- No modifications, commits, patches, or configuration writes to Jarvis, Brody,
+  KX108, or any other repository or local project.
+- Existing external services may be accessed through published interfaces;
+  their code and configuration remain untouched.
+- Two historical Studio-originated local patches were restored from exact
+  pre-patch backups by the operator (DRY_RUN=PASS and RESTORE_COMPLETE).
+  This confirms those two file restorations only; it does not independently
+  certify every external working tree or historical operation.
+- Cross-repository patch scripts and their tests were removed from Studio.
+- Do not use unit-test results as proof of end-to-end editorial generation.
+- No bypass of HOLD/HUMAN_REVIEW, kernel authority, or semantic sufficiency.
+- New functionality and compatibility adaptations must be implemented inside
+  Studio; an unsupported external contract is a Studio integration limitation.
