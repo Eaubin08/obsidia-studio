@@ -27,6 +27,31 @@ class LocalAIContractTests(unittest.TestCase):
             with self.assertRaises(studio_ai.InferenceError):
                 studio_ai.generate("Rédige")
 
+    def test_identity_fallback_rejected(self):
+        payload = {
+            "response": "Je suis Brody, interface structurée readonly.",
+            "final_answer": "Je suis Brody.",
+            "response_md": "Ce symbole reste non résolu avant raisonnement.",
+            "final_answer_source": "TERMINAL_DIALOGUE_IDENTITY",
+        }
+        with patch.object(studio_ai, "_call", return_value=payload):
+            with self.assertRaisesRegex(studio_ai.InferenceError, "TERMINAL_DIALOGUE_IDENTITY"):
+                studio_ai.generate("Rédige un post")
+
+    def test_structured_post_preferred_over_identity(self):
+        payload = {
+            "response": "Je suis Brody.",
+            "final_answer": "Je suis Brody.",
+            "response_md": "<POST>Brouillon validable humainement.</POST>",
+        }
+        with patch.object(studio_ai, "_call", return_value=payload):
+            self.assertEqual(studio_ai.generate("Rédige"), payload["response_md"])
+
+    def test_non_empty_post_only(self):
+        with patch.object(studio_ai, "_call", return_value={"response": "<POST></POST>"}):
+            with self.assertRaises(studio_ai.InferenceError):
+                studio_ai.generate("Rédige")
+
     def test_default_status_is_configuration_only(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
             st = studio_ai.status()
