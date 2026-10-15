@@ -73,6 +73,37 @@ class LocalAIContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(studio_ai.InferenceError, "sans artefact"):
                     studio_ai.generate("Rédige")
 
+    def test_verified_qwen_ingress_returns_unapproved_draft(self):
+        payload = {
+            "status": "READY_READONLY", "readonly": True, "advisory_only": True,
+            "decision_authority": "KX108_ONLY", "allowed_to_act": False,
+            "memory_write": False, "emits_act": False, "kernel_mutation": False,
+            "route_decision": {
+                "router_status": "ROUTER_OK", "fail_closed_hold": False,
+                "gate_verdict": "ALLOW",
+            },
+            "local_model_stage": {
+                "status": "EVIDENCE_READY", "eligible": True,
+                "attempted": True, "model_call_used": True,
+                "evidence_applied": True, "tokens_remote": 0,
+            },
+            "final_response": "Proposition sur comprendre, proposer, décider.",
+        }
+        env = {"OBSIDIA_STUDIO_USE_INGRESS": "1", "OBSIDIA_STUDIO_ENABLE_INGRESS": "1"}
+        with patch.dict(os.environ, env), patch.object(studio_ai, "_ingress_call", return_value=payload):
+            self.assertIn("<POST>", studio_ai.generate("Rédige"))
+            self.assertIn("Proposition sur", studio_ai.generate("Rédige"))
+        for change in (
+            {"local_model_stage": {**payload["local_model_stage"], "evidence_applied": False}},
+            {"route_decision": {**payload["route_decision"], "fail_closed_hold": True}},
+            {"advisory_only": False},
+            {"local_model_stage": {**payload["local_model_stage"], "tokens_remote": 42}},
+        ):
+            with self.subTest(change=change), patch.dict(os.environ, env):
+                with patch.object(studio_ai, "_ingress_call", return_value={**payload, **change}):
+                    with self.assertRaises(studio_ai.InferenceError):
+                        studio_ai.generate("Rédige")
+
     def test_default_status_is_configuration_only(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
             st = studio_ai.status()
