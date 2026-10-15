@@ -6,13 +6,13 @@ model chatter and literal newline escape sequences before human review.
 import re
 
 _INTRO = re.compile(
-    r"^(?:voici|je vous propose|je te propose)\\s+(?:une\\s+)?"
-    r"(?:courte\\s+)?(?:publication|proposition|version|texte|post)\\b[^\\n:]{0,200}:\\s*",
+    r"^(?:voici|je vous propose|je te propose)\s+(?:une\s+)?"
+    r"(?:courte\s+)?(?:publication|proposition|version|texte|post)\b[^\n:]{0,200}:\s*",
     re.I,
 )
 _OUTRO = re.compile(
-    r"\\s+(?:cette publication|ce post|ce texte)\\s+"
-    r"(?:respecte|couvre|est adapté|est concis|est une proposition)\\b.*$",
+    r"\s+(?:cette publication|ce post|ce texte)\s+"
+    r"(?:respecte|couvre|est adapté|est concis|est une proposition)\b.*$",
     re.I | re.S,
 )
 
