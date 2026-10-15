@@ -88,6 +88,7 @@ class LocalAIContractTests(unittest.TestCase):
                 "router_status": "ROUTER_OK", "fail_closed_hold": False,
                 "gate_verdict": "ALLOW",
             },
+            "brody_sufficiency": {"status": "BRODY_INSUFFICIENT", "next_stage": "LOCAL_MODEL_GATE"},
             "local_model_stage": {
                 "status": "EVIDENCE_READY", "eligible": True,
                 "attempted": True, "model_call_used": True,
@@ -109,6 +110,33 @@ class LocalAIContractTests(unittest.TestCase):
                 with patch.object(studio_ai, "_ingress_call", return_value={**payload, **change}):
                     with self.assertRaises(studio_ai.InferenceError):
                         studio_ai.generate("Rédige")
+
+    def test_verified_brody_sufficient_skips_qwen(self):
+        payload = {
+            "status": "READY_READONLY", "readonly": True, "advisory_only": True,
+            "decision_authority": "KX108_ONLY", "allowed_to_act": False,
+            "memory_write": False, "emits_act": False, "kernel_mutation": False,
+            "route_decision": {"router_status": "ROUTER_OK", "fail_closed_hold": False,
+                               "gate_verdict": "ALLOW"},
+            "brody_sufficiency": {
+                "status": "BRODY_SUFFICIENT", "sufficient": True,
+                "next_stage": "LOCAL_STACK_RESULT", "brody_boundary_ok": True,
+                "output_contract_ok": True, "contradictions": [], "risk_flags": [],
+            },
+            "local_model_stage": {"status": "SKIPPED", "model_call_used": False},
+            "final_response": "Texte de Brody seul à vérifier humainement.",
+        }
+        env = {"OBSIDIA_STUDIO_USE_INGRESS": "1", "OBSIDIA_STUDIO_ENABLE_INGRESS": "1"}
+        with patch.dict(os.environ, env), patch.object(studio_ai, "_ingress_call", return_value=payload):
+            self.assertIn("Texte de Brody seul", studio_ai.generate("Rédige"))
+        for bad in ({"brody_sufficiency": {**payload["brody_sufficiency"], "sufficient": False}},
+                    {"brody_sufficiency": {**payload["brody_sufficiency"], "contradictions": ["ACTION"]}},
+                    {"local_model_stage": {"model_call_used": True}},
+                    {"route_decision": {**payload["route_decision"], "gate_verdict": "HOLD"}}):
+            with patch.dict(os.environ, env), patch.object(studio_ai, "_ingress_call",
+                return_value={**payload, **bad}):
+                with self.assertRaises(studio_ai.InferenceError):
+                    studio_ai.generate("Rédige")
 
     def test_default_status_is_configuration_only(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
