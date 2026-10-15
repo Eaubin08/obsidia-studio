@@ -313,6 +313,12 @@ def choose_image(pid: str, body: ChooseIn):
     post = load(pid)
     if not re.fullmatch(r"[\w.-]+\.png", body.image) or not (IMAGES / body.image).exists():
         raise HTTPException(400, "image inconnue")
+    # Ne pas permettre d'associer l'image d'un autre post à ce post.
+    allowed = set(post.get("variants") or [])
+    if post.get("image"):
+        allowed.add(post["image"])
+    if body.image not in allowed:
+        raise HTTPException(400, "image non associée à ce post")
     post["image"], post["image_chosen"] = body.image, True
     return save(post)
 
