@@ -80,6 +80,27 @@ def main(argv=None):
         return 2
     details = snapshot(result)
     print(json.dumps(details, ensure_ascii=False, indent=2, default=str))
+    if suff := result.get("brody_sufficiency"):
+        # Surface structural reasons instead of treating a readable fallback
+        # as a produced editorial artifact.
+        allowed = ("status", "reason", "next_stage", "sufficient",
+                   "semantic_resolution", "semantic_resolution_status",
+                   "missing_fields", "missing_components", "requirements",
+                   "output_contract_ok", "brody_boundary_ok",
+                   "resolution_required", "pre_reasoning",
+                   "evidence_needed", "requires_kx108_decision")
+        print("=== BRODY_RESOLUTION_DETAILS ===")
+        print(json.dumps({k: v for k, v in suff.items() if k in allowed},
+                         ensure_ascii=False, indent=2, default=str))
+    route_debug = result.get("route_decision") or {}
+    print("=== ROUTE_IR_DETAILS ===")
+    print(json.dumps({
+        "gate_verdict": route_debug.get("gate_verdict"),
+        "reason": route_debug.get("reason"),
+        "ir": route_debug.get("ir"),
+        "brody_stage_status": (result.get("brody_stage") or {}).get("status"),
+        "llm_activation_status": (result.get("llm_activation") or {}).get("status"),
+    }, ensure_ascii=False, indent=2, default=str))
     print("=== DECISION_METADATA_TRACE ===")
     trace = intent_trace({k: v for k, v in result.items() if k not in ("final_response", "surface_response", "final_answer_snapshot", "context_packet_v2")})
     print(json.dumps(trace, ensure_ascii=False, indent=2, default=str))
