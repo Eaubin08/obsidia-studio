@@ -210,3 +210,12 @@ textarea.doc{min-height:60vh;font-family:Consolas,monospace;font-size:13px;margi
 .atelier-actions .b{white-space:nowrap}
 @media(max-width:1250px){.atelier-board{grid-template-columns:repeat(5,215px)}}
 @media(max-width:700px){.atelier-board{grid-template-columns:repeat(5,205px)}}
+
+/* Déplacement et sélection groupée des cartes éditoriales */
+.atelier-bulk{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.atelier-bulk select{width:auto;min-width:170px;flex:1;max-width:280px}
+.atelier-check{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;cursor:pointer;margin-bottom:8px}
+.atelier-check input{width:auto;accent-color:var(--accent)}
+.atelier-card[draggable="true"]{cursor:grab}
+.atelier-card.dragging{opacity:.4;cursor:grabbing}
+.atelier-col.drop-target{outline:2px dashed var(--accent);outline-offset:-3px;background:var(--panel2)}
