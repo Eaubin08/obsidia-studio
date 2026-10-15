@@ -178,7 +178,7 @@ def generate(prompt, timeout=600, *, return_receipt=False, use_ingress=None):
             raise InferenceError("Ingress sans artefact éditorial vérifié : aucun brouillon. " + details)
         # Text is a candidate requiring editorial/factual human review.
         # Do not manufacture hooks or evidence claims not returned by cognition.
-        artifact = "<POST>\\n" + draft.strip() + "\\n</POST>"
+        artifact = "<POST>\n" + draft.strip() + "\n</POST>"
         return (artifact, _editorial_provenance(result)) if return_receipt else artifact
 
     # Les sorties Brody peuvent diverger : le final_answer peut être un
