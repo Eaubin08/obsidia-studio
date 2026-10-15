@@ -248,7 +248,13 @@ def generate(body: GenIn):
                "Réponds avec 3 accroches numérotées, puis le texte final entre les balises <POST> et </POST>, "
                "puis la liste des affirmations avec leur statut de preuve.")
     try:
-        out = studio_ai.generate(_studio_context() + prompt)
+        # The AMD router evaluates the *whole* request for execution intent.
+        # Legacy local docs can contain historical "commit"/"push" commands;
+        # they are not user instructions and must not be mixed into the
+        # pre-inference routing request. Only the explicit editorial task goes
+        # to the governed ingress. The old Brody path is unchanged.
+        routed_prompt = prompt if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1" else _studio_context() + prompt
+        out = studio_ai.generate(routed_prompt)
     except studio_ai.InferenceError as exc:
         raise HTTPException(503, str(exc)) from exc
     m = re.search(r"<POST>\s*(.*?)\s*</POST>", out, re.S)
