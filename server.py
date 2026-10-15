@@ -252,6 +252,21 @@ def generate(body: GenIn):
     # for Studio. It is NOT a fallback from a denied Cognitive Ingress call.
     # The original governed ingress remains fail-closed and unchanged.
     editorial_mode = os.getenv("OBSIDIA_STUDIO_EDITORIAL_MODE", "governed_ingress")
+    if editorial_mode == "studio_local_model":
+        # Explicit Studio-owned editorial model route, not an automatic
+        # fallback after a governed HOLD. No external repository is altered.
+        from studio_editorial_engine import generate_editorial, EditorialEngineError
+        try:
+            draft = generate_editorial(
+                body.idea, network=net["label"], source_text=body.source_text
+            )
+        except EditorialEngineError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        cleaned = clean_editorial_draft(draft["text"])
+        if not cleaned.strip():
+            raise HTTPException(502, "Brouillon local vide apres nettoyage.")
+        return {"raw": "", "text": cleaned,
+                "provenance": draft["provenance"], "warning": draft["warning"]}
     if editorial_mode == "studio_template":
         from studio_editorial_contract import build_readonly_draft
         draft = build_readonly_draft(body.idea, body.source_text, net["label"])
