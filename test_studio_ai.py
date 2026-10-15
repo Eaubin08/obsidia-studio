@@ -58,6 +58,18 @@ class LocalAIContractTests(unittest.TestCase):
             with self.assertRaises(studio_ai.InferenceError):
                 studio_ai.generate("Rédige")
 
+    def test_explicit_native_mode_never_calls_ingress(self):
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1"}):
+            with patch.object(studio_ai, "_ingress_call") as ingress:
+                with patch.object(studio_ai, "_call", return_value={
+                    "response": "<POST>Texte de Brody à relire.</POST>",
+                    "readonly": True, "emits_act": False,
+                }) as native:
+                    actual = studio_ai.generate("Proposition", use_ingress=False)
+                    self.assertEqual(actual, "<POST>Texte de Brody à relire.</POST>")
+                    native.assert_called_once()
+                    ingress.assert_not_called()
+
     def test_ingress_opt_in_off_by_default(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "0"}):
             with patch.object(studio_ai, "_call", return_value={"response": "<POST>Bonjour</POST>"}) as call:
