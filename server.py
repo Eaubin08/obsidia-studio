@@ -32,6 +32,7 @@ for d in (POSTS, IMAGES, BACKUPS):
 
 sys.path.insert(0, str(ROOT))
 import visuals  # noqa: E402
+import studio_ai  # noqa: E402
 
 # days = jours préférés (0 = lundi) : hypothèses éditoriales, modifiables, à vérifier par l'audit
 NETWORKS = {
@@ -140,6 +141,11 @@ class DocIn(BaseModel):
 
 
 # ---------------------------------------------------------------- API posts
+@app.get("/api/ai/status")
+def ai_status():
+    return studio_ai.status()
+
+
 @app.get("/api/meta")
 def meta():
     return {"networks": NETWORKS, "statuses": STATUSES, "motifs": list(visuals.MOTIFS)}
@@ -232,16 +238,10 @@ def generate(body: GenIn):
                "N'invente aucun chiffre, résultat ni anecdote : utilise {{placeholder}} si un fait manque. "
                "Réponds avec 3 accroches numérotées, puis le texte final entre les balises <POST> et </POST>, "
                "puis la liste des affirmations avec leur statut de preuve.")
-    exe = shutil.which("claude")
-    if not exe:
-        raise HTTPException(500, "commande claude introuvable dans le PATH")
     try:
-        r = subprocess.run([exe, "-p", prompt, "--allowedTools", "Read",
-                            "--output-format", "text"], capture_output=True, text=True,
-                           encoding="utf-8", timeout=600, cwd=str(DATA))
-    except subprocess.TimeoutExpired:
-        raise HTTPException(504, "Claude Code n'a pas répondu en 10 minutes")
-    out = r.stdout or r.stderr
+        out = studio_ai.generate(_studio_context() + prompt)
+    except studio_ai.InferenceError as exc:
+        raise HTTPException(503, str(exc)) from exc
     m = re.search(r"<POST>\s*(.*?)\s*</POST>", out, re.S)
     return {"raw": out, "text": m.group(1).strip() if m else ""}
 
@@ -404,16 +404,36 @@ VOICE_RULES = (
     "Mode studio : ne pose aucune question, n'écris dans aucun fichier, ne publie rien.\n\n")
 
 
+def _studio_context():
+    """Inject local docs into the model prompt, never give the model disk access."""
+    parts = []
+    for label, path in (("voice", DOCS["voice"]), ("story", DOCS["story"]),
+                        ("journal", DATA / "journal.md"), ("guides", DATA / "guides.json"),
+                        ("public_proofs", DATA / "proofs.json")):
+        if not path.exists():
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+            if label == "public_proofs":
+                data = json.loads(content)
+                if isinstance(data, list):
+                    content = json.dumps([p for p in data if isinstance(p, dict) and p.get("public") is True], ensure_ascii=False)
+                elif isinstance(data, dict):
+                    content = json.dumps([p for p in data.get("items", []) if isinstance(p, dict) and p.get("public") is True], ensure_ascii=False)
+                else:
+                    content = "[]"
+            parts.append(f"<context label={label!r}>\\n{content[:12000]}\\n</context>")
+        except (OSError, ValueError):
+            continue
+    return "\\n".join(parts) + "\\n\\n"
+
+
 def claude(prompt: str, timeout: int = 600) -> str:
-    exe = shutil.which("claude")
-    if not exe:
-        raise HTTPException(500, "commande claude introuvable dans le PATH")
+    """Legacy function name retained for existing call sites; routes to local stack."""
     try:
-        r = subprocess.run([exe, "-p", prompt, "--allowedTools", "Read", "--output-format", "text"],
-                           capture_output=True, text=True, encoding="utf-8", timeout=timeout, cwd=str(DATA))
-    except subprocess.TimeoutExpired:
-        raise HTTPException(504, "Claude Code n'a pas répondu à temps")
-    return r.stdout or r.stderr
+        return studio_ai.generate(_studio_context() + prompt, timeout=timeout)
+    except studio_ai.InferenceError as exc:
+        raise HTTPException(503, str(exc)) from exc
 
 
 def claude_json(prompt: str, timeout: int = 600):
