@@ -110,7 +110,7 @@ def generate(prompt, timeout=600):
         )
         draft = result.get("final_response")
         if not guarded or not isinstance(draft, str) or not draft.strip():
-            raise InferenceError("Ingress sans preuve Qwen appliquée ou enveloppe readonly conforme : aucun brouillon.")
+            raise InferenceError("Ingress sans artefact éditorial vérifié (preuve Qwen appliquée + enveloppe readonly requises) : aucun brouillon.")
         # Text is a candidate requiring editorial/factual human review.
         # Do not manufacture hooks or evidence claims not returned by cognition.
         return "<POST>\\n" + draft.strip() + "\\n</POST>"
