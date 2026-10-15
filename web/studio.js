@@ -349,6 +349,7 @@ async function wizard3(btn) {
 // ============================================================ IDÉES (suggestions, journal, campagnes, trimestre)
 let IDEATAB = "atelier";
 let ATELIER_FILTER = {network: "", search: ""};
+const ATELIER_SELECTED = new Set();
 async function pageIdeas(tab) {
   if (tab) IDEATAB = tab;
   $("main").innerHTML = `<div class="page-head"><h1>Idées</h1><p class="muted">Ce qui nourrit tes posts : des idées, des faits réels, des campagnes.</p></div>
@@ -370,7 +371,7 @@ async function ideasAtelier() {
         </select>
         <button class="b p" style="flex:0 0 auto" onclick="wizard()">＋ Nouveau post</button>
       </div>
-      <p class="muted">Les déplacements ne publient rien. La validation passe par les vérifications du Studio.</p>
+      <p class="muted">Glisse une carte entre les colonnes, ou sélectionne des cartes pour une action groupée. Aucun post ne sera publié automatiquement.</p><div class="atelier-bulk"><span id="atelierCount">0 sélectionné</span><button class="b small" onclick="atelierSelectAll()">Tout sélectionner (filtré)</button><button class="b small" onclick="atelierClear()">Effacer</button><select id="atelierDestination"><option value="">Déplacer vers…</option><option value="idée">Idée</option><option value="brouillon">Brouillon</option><option value="validé">Validé</option><option value="programmé">Programmé</option></select><button class="b p small" onclick="atelierBatch()">Appliquer</button></div>
     </div>
     <div class="atelier-board" id="atelierBoard"></div>`;
   renderAtelier(status);
@@ -387,10 +388,10 @@ function renderAtelier() {
   const status = ["idée", "brouillon", "validé", "programmé", "publié"];
   board.innerHTML = status.map(st => {
     const ps = matches.filter(p => p.status === st).sort((a,b) => (a.planned || "9999").localeCompare(b.planned || "9999"));
-    return `<section class="atelier-col"><h3>${esc(st)} <span class="tag">${ps.length}</span></h3>
-      ${ps.map(p => `<article class="atelier-card">
+    return `<section class="atelier-col" ondragover="atelierDragOver(event)" ondragleave="atelierDragLeave(event)" ondrop="atelierDrop(event, this.dataset.status)" data-status="${st}"><h3>${esc(st)} <span class="tag">${ps.length}</span></h3>
+      ${ps.map(p => `<article class="atelier-card" draggable="true" ondragstart="atelierDragStart(event, this.dataset.id)" ondragend="atelierDragEnd(event)" data-id="${p.id}">
         <div class="net" style="color:${NC(p.network)}">● ${esc(NL(p.network))} ${p.planned ? "· " + esc(p.planned) : "· sans date"}</div>
-        <button class="atelier-title" onclick="openPost('${p.id}')">${esc(first(p))}</button>
+        <label class="atelier-check"><input type="checkbox" ${ATELIER_SELECTED.has(p.id) ? "checked" : ""} onchange="atelierToggle(\'${p.id}\',this.checked)"> Sélectionner</label><button class="atelier-title" onclick="openPost('${p.id}')">${esc(first(p))}</button>
         ${p.check_flag ? `<div class="bad" style="font-size:12px">À corriger : ${esc(p.check_flag)}</div>` : ""}
         <div class="atelier-actions"><button class="b small" onclick="openPost('${p.id}')">Ouvrir</button>
           <select aria-label="Changer le statut" onchange="atelierSetStatus('${p.id}',this)">
@@ -398,6 +399,7 @@ function renderAtelier() {
           </select></div>
       </article>`).join("") || '<p class="muted">Aucun post.</p>'}</section>`;
   }).join("");
+  atelierUpdateSelectedCount();
 }
 async function atelierSetStatus(id, select) {
   const p = POSTS.find(x => x.id === id); if (!p) return;
@@ -421,6 +423,39 @@ async function atelierSetStatus(id, select) {
     select.disabled = false;
     toast("Statut inchangé : " + e.message);
   }
+}
+function atelierUpdateSelectedCount() { const el = $("atelierCount"); if (el) el.textContent = ATELIER_SELECTED.size + " sélectionné(s)"; }
+function atelierToggle(id, value) { if(value) ATELIER_SELECTED.add(id); else ATELIER_SELECTED.delete(id); atelierUpdateSelectedCount(); }
+function atelierClear() { ATELIER_SELECTED.clear(); renderAtelier(); }
+function atelierSelectAll() {
+ const q = ATELIER_FILTER.search.toLocaleLowerCase("fr");
+ POSTS.filter(p => (!ATELIER_FILTER.network || p.network === ATELIER_FILTER.network) && (!q || [p.hook,p.text,p.series,p.notes].some(v => String(v || "").toLocaleLowerCase("fr").includes(q)))).forEach(p => ATELIER_SELECTED.add(p.id));
+ renderAtelier();
+}
+function atelierDragStart(e,id) { e.dataTransfer.setData("text/plain",id); e.dataTransfer.effectAllowed="move"; e.currentTarget.classList.add("dragging"); }
+function atelierDragEnd(e) { e.currentTarget.classList.remove("dragging"); document.querySelectorAll(".atelier-col").forEach(el=>el.classList.remove("drop-target")); }
+function atelierDragOver(e) { e.preventDefault(); e.currentTarget.classList.add("drop-target"); }
+function atelierDragLeave(e) { if(!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove("drop-target"); }
+async function atelierDrop(e,status) {
+ e.preventDefault(); e.currentTarget.classList.remove("drop-target");
+ const id=e.dataTransfer.getData("text/plain"), p=POSTS.find(x=>x.id===id);
+ if(!p || p.status===status) return;
+ if(status==="publié") return toast("Ouvre le post pour confirmer une publication réelle.");
+ try { await api("/api/posts/"+id,{method:"PUT",body:JSON.stringify({...p,status})}); await refresh(); renderAtelier(); toast("Post déplacé"); }
+ catch(err) { toast("Déplacement bloqué : "+err.message); }
+}
+async function atelierBatch() {
+ const status=$("atelierDestination").value, ids=[...ATELIER_SELECTED];
+ if(!status || !ids.length) return toast("Choisis une destination et au moins un post.");
+ const confirmed=await askModal("Déplacer "+ids.length+" posts ?", "Les contrôles restent appliqués à chaque publication. Aucune publication automatique.", "Confirmer");
+ if(!confirmed) return;
+ let done=0, fail=0;
+ for(const id of ids) { const p=POSTS.find(x=>x.id===id); if(!p) continue;
+  if(p.status===status) {ATELIER_SELECTED.delete(id);continue;}
+  try {await api("/api/posts/"+id,{method:"PUT",body:JSON.stringify({...p,status})});ATELIER_SELECTED.delete(id);done++;}
+  catch(e){fail++;}
+ }
+ await refresh();renderAtelier();toast(done+" modifié(s), "+fail+" bloqué(s).");
 }
 function ideasSugg() {
   $("ideaBody").innerHTML = `<div class="panel"><div class="row"><input id="sAsk" placeholder="Un angle particulier ? (facultatif) ex. des idées Instagram autour de Brody"><button class="b p" style="flex:0 0 auto" onclick="suggest(this)">Proposer 6 idées</button></div></div><div class="ideas" id="sOut"></div>`;
