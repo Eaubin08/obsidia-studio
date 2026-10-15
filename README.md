@@ -46,20 +46,19 @@ python server.py
 Avant de modifier les fonctionnalités, contrôler le statut Git et tester les parcours critiques dans le navigateur. Ne jamais versionner de jetons, profils personnels ou documents internes.
 
 
-## IA locale Obsidia / Qwen (sans interface Monde)
+## IA Obsidia — Brody en premier (sans Monde ni CSSA)
 
-Depuis l'adaptateur `studio_ai.py`, les générations demandées par le Studio sont envoyées à un serveur **local compatible avec l'API OpenAI**. Ni Monde ni CSSA ne sont nécessaires. Le Studio ne lance **pas** Qwen, Brody ou Obsidure : il les appelle uniquement si un endpoint local compatible est disponible.
+Le raccordement éditorial passe par l'API cognitive de la stack Obsidia, **pas directement par Qwen**. Chaîne cible : Studio → `POST /api/brody/chat` → Brody / routeur cognitif interne → Qwen **seulement si nécessaire** → proposition de texte → vérification éditoriale → validation humaine.
 
-Par défaut : `http://127.0.0.1:8080/v1/chat/completions`, modèle `local` (**valeurs de configuration, non vérifiées sur votre PC**). Dans PowerShell, avant `python server.py` :
+Ce contrat provient des intégrations Jarjar / OpenJarvis ; nous réutilisons le point d'entrée, **pas leur interface**. Studio ne modifie aucun dépôt de la stack.
+
+Adresse par défaut : `http://127.0.0.1:8000`. Si l'API Brody écoute ailleurs, configurer dans le terminal AVANT le démarrage :
 
 ```powershell
-$env:OBSIDIA_STUDIO_AI_URL="http://127.0.0.1:8080/v1"
-$env:OBSIDIA_STUDIO_AI_MODEL="local"
+$env:OBSIDIA_STUDIO_BRODY_URL="http://127.0.0.1:8000"
 python server.py
 ```
 
-Si Qwen expose un autre port ou un autre identifiant de modèle, adaptez ces deux variables. Consultez `GET /api/ai/status` pour la configuration lue par le Studio : ce diagnostic **ne confirme pas la disponibilité réelle** du modèle. Un appel à `/api/generate` vérifie la connexion et renvoie une erreur explicite si le service est absent. Les modèles locaux doivent respecter le contrat Chat Completions non-streaming (`choices[0].message.content`). Le serveur n'envoie aucune requête vers Internet depuis cet adaptateur : seul HTTP loopback est autorisé.
+`GET /api/ai/status` indique la configuration et tente de consulter `/openapi.json`. La route `/api/brody/chat` attend `message`, `language`, `session_id`, `allow_provider` ; la réponse doit fournir un texte sous `response`, `final_answer` ou `response_md`. La conformité effective au runtime actuel doit encore être testée sur le PC. L'absence d'API (ou de Qwen interne) produit une erreur explicite, **jamais un appel direct silencieux de Studio vers Qwen ni Claude**.
 
-Les prompts sont enrichis avec les documents locaux existants et **seules les preuves marquées `public=true`** sont transmises depuis `proofs.json`. Les brouillons produits doivent encore être vérifiés par l'utilisateur. Certaines étiquettes historiques du code parlent encore de « Claude » : elles seront remplacées dans une passe d'interface ultérieure.
-
-Les autres sources locales et `data/` restent privées et exclues de Git. Aucun appel à une API de publication n'est ajouté.
+Les contextes locaux sont lus par le serveur Studio ; seules les preuves `public=true` sont incluses dans l'extrait de la banque de preuves. Les textes générés restent des propositions, sans autorité d'exécution ni publication automatique. `data/` est exclu de Git.
