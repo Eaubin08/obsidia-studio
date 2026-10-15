@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidia Studio</title>
+<link rel="stylesheet" href="studio.css">
+</head>
+<body>
+<aside class="side">
+  <div class="brand"><span class="logo">◆</span><div><b>Obsidia</b><small>Studio</small></div></div>
+  <button class="new" onclick="wizard()">＋ Nouveau post</button>
+  <nav id="nav">
+    <button data-page="home"><i>⌂</i>Accueil</button>
+    <button data-page="cal"><i>▦</i>Calendrier</button>
+    <button data-page="ideas"><i>✦</i>Idées</button>
+    <button data-page="results"><i>▲</i>Résultats</button>
+    <button data-page="settings"><i>⚙</i>Réglages</button>
+  </nav>
+  <div class="side-foot" id="pilotState"></div>
+</aside>
+<div class="wrap">
+  <header class="top"><div id="todayBar" class="today"></div><span id="profLinks" class="prof"></span></header>
+  <main id="main"></main>
+</div>
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<script src="studio.js"></script>
+</body>
+</html>
