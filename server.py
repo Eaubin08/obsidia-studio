@@ -263,7 +263,7 @@ def generate(body: GenIn):
         # they are not user instructions and must not be mixed into the
         # pre-inference routing request. Only the explicit editorial task goes
         # to the governed ingress. The old Brody path is unchanged.
-        if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1":
+        if use_ingress:
             # Keep this pre-inference request aligned with the previously
             # observed ALLOW → LOCAL_MODEL_GATE route. Generic formatting
             # instructions (notably "statut de preuve") can be classified
