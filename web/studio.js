@@ -175,7 +175,7 @@ async function pagePost() {
           ${tips.length ? `<details class="tips"><summary>${tips.length} conseil(s)</summary><ul>${tips.map(i => `<li>${esc(i.msg)}</li>`).join("")}</ul></details>` : ""}
         </div>
         <div class="big-actions">
-          ${!p.text ? `<button class="b p xl" onclick="writeIt(this)">✎ Faire rédiger par Claude</button><button class="b xl" onclick="EDITING=true;pagePost()">Rédiger manuellement (sans quota)</button><p class="muted">Claude Code est appelé uniquement lorsque tu demandes une génération. Les images du Studio sont rendues localement par Chrome.</p>` : `
+          ${!p.text ? `<button class="b p xl" onclick="writeIt(this)">✎ Faire rédiger par Obsidia</button><button class="b xl" onclick="EDITING=true;pagePost()">Rédiger manuellement (sans quota)</button><p class="muted">La rédaction de posts utilise Obsidia / Brody → Qwen local. D'autres outils du Studio utilisent encore Claude Code. Les images du Studio sont rendues localement par Chrome.</p>` : `
           <button class="b p xl" onclick="copyText()">Copier le texte</button>
           <button class="b xl" onclick="copyImg()" ${p.image ? "" : "disabled"}>Copier l'image</button>
           <button class="b xl" onclick="EDITING=true;pagePost()">Modifier le texte</button>
@@ -200,7 +200,7 @@ async function pagePost() {
             <input id="oSeries" value="${esc(p.series || "")}" placeholder="Série"></div>
           <input id="oNotes" value="${esc(p.notes || "")}" placeholder="Notes, sources, à confirmer">
           <button class="b small" onclick="saveOptions()">Enregistrer les réglages</button>
-          <h4>Réécrire avec Claude</h4>
+          <h4>Réécrire avec Obsidia</h4>
           <div class="row"><select id="oTpl"><option value="">Sans modèle</option>${TPL.map(t => `<option value="${t.id}" ${t.id === p.template ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
             <input id="oIdea" placeholder="Ce que tu veux changer ou ajouter"></div>
           <button class="b small" onclick="rewrite(this)">Réécrire</button>
@@ -245,10 +245,10 @@ async function saveOptions() {
   if (await putPost({network: $("oNet").value, planned: $("oDate").value, time: $("oTime").value, status: $("oStatus").value, series: $("oSeries").value, notes: $("oNotes").value})) { toast("Réglages enregistrés"); pagePost(); }
 }
 async function writeIt(btn, idea, template) {
-  btn.disabled = true; btn.textContent = "Claude écrit… (1 à 3 min)";
+  btn.disabled = true; btn.textContent = "Obsidia / Qwen rédige…";
   try {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: idea || [CUR.hook, CUR.notes].filter(Boolean).join(" — ") || "post", network: CUR.network, template: template || CUR.template || ""})});
-    if (!r.text) { toast("Claude n'a pas rendu de texte exploitable"); return pagePost(); }
+    if (!r.text) { toast("Obsidia n'a pas rendu de texte exploitable"); return pagePost(); }
     const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
     await putPost({text: cleaned, status: CUR.status === "idée" ? "brouillon" : CUR.status});
     btn.textContent = "Création des images…";
@@ -257,7 +257,7 @@ async function writeIt(btn, idea, template) {
   pagePost();
 }
 async function rewrite(btn) {
-  btn.disabled = true; btn.textContent = "Claude réécrit…";
+  btn.disabled = true; btn.textContent = "Obsidia / Qwen réécrit…";
   try {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: $("oIdea").value || "améliorer ce post", network: CUR.network, source_text: CUR.text, template: $("oTpl").value})});
     if (r.text) { await putPost({text: (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim(), template: $("oTpl").value}); toast("Réécrit"); }
@@ -304,7 +304,7 @@ async function wizard2() {
     <div class="row"><div><label>Date</label><input type="date" id="wDate" value="${WZ.date}"></div></div>
     <label>Ton idée, ou ce qui s'est passé</label><textarea id="wIdea" class="short" placeholder="ex. Brody fusionnait deux hypothèses : j'ai ajouté une règle pour qu'il les garde séparées"></textarea>
     ${journal.length ? `<label>Ou pars d'un fait récent de ton journal</label><div class="facts">${journal.map(l => `<button class="fact" onclick="$('wIdea').value=this.textContent">${esc(l.replace(/^- /, ""))}</button>`).join("")}</div>` : ""}
-    <div class="actions"><button class="b p" onclick="wizard3(this)">Faire rédiger par Claude</button><button class="b" onclick="wizardSaveIdea(this)">Enregistrer l'idée seule</button><button class="b" onclick="wizard()">← Retour</button></div>`;
+    <div class="actions"><button class="b p" onclick="wizard3(this)">Faire rédiger par Obsidia</button><button class="b" onclick="wizardSaveIdea(this)">Enregistrer l'idée seule</button><button class="b" onclick="wizard()">← Retour</button></div>`;
 }
 // Le mode brouillon manuel ne consomme aucun quota Claude et conserve l'idée localement.
 async function wizardSaveIdea(btn) {
@@ -332,7 +332,7 @@ async function wizard3(btn) {
   if (!idea) return toast("Écris une idée, même en quelques mots");
   WZ.date = $("wDate").value;
   btn.disabled = true;
-  $("sheet").innerHTML = `<div class="steps"><span>1 Type</span> · <span>2 Idée</span> · <b>3</b> Rédaction</div><div class="writing"><div class="spin"></div><h2>Claude écrit ton post…</h2><p class="muted">Puis le nettoie et crée 3 images. Compte 1 à 3 minutes.</p></div>`;
+  $("sheet").innerHTML = `<div class="steps"><span>1 Type</span> · <span>2 Idée</span> · <b>3</b> Rédaction</div><div class="writing"><div class="spin"></div><h2>Obsidia / Qwen rédige ton post…</h2><p class="muted">Puis le nettoie et crée 3 images. Compte 1 à 3 minutes.</p></div>`;
   try {
     const p = await api("/api/posts", {method: "POST", body: JSON.stringify({network: WZ.network, planned: WZ.date, time: META.networks[WZ.network].time, status: "idée", hook: idea.slice(0, 120), template: WZ.template, series: "Journal d'éducation d'Obsidia"})});
     await refresh(); CUR = POSTS.find(x => x.id === p.id);
@@ -341,7 +341,7 @@ async function wizard3(btn) {
       const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
       await putPost({text: cleaned, status: "brouillon", hook: cleaned.split("\n")[0].slice(0, 120)});
       CUR = await api(`/api/posts/${p.id}/variants`, {method: "POST", body: JSON.stringify({})});
-    } else toast("Claude n'a pas rendu de texte : réessaie depuis le post");
+    } else toast("Obsidia n'a pas rendu de texte : réessaie depuis le post");
   } catch (e) { toast("Erreur : " + e.message); }
   closeModal(); EDITING = false; go("post");
 }
