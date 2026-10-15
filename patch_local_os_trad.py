@@ -85,10 +85,10 @@ def patch_source(source):
     replacement = ast.get_source_segment(source, value)
     lines[node.lineno - 1] = (
         indent + "return _studio_explanatory_action_filter(text, "
-        + replacement + ")" + ("\\r\\n" if original_line.endswith("\\r\\n") else "\\n")
+        + replacement + ")" + ("\r\n" if original_line.endswith("\r\n") else "\n")
     )
-    ending = "\\r\\n" if "\\r\\n" in source else "\\n"
-    result = "".join(lines) + ending + HELPER.strip().replace("\\n", ending) + ending
+    ending = "\r\n" if "\r\n" in source else "\n"
+    result = "".join(lines) + ending + HELPER.strip().replace("\n", ending) + ending
     ast.parse(result)
     return result
 
