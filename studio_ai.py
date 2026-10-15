@@ -208,7 +208,7 @@ def generate(prompt, timeout=600, *, return_receipt=False, use_ingress=None):
     import re
     for field in ("response", "final_answer", "response_md"):
         value = result.get(field)
-        if isinstance(value, str) and re.search(r"<POST>(.+?)</POST>", value, re.I | re.S):
+        if isinstance(value, str) and re.fullmatch(r"\s*<POST>\s*(.*?)\s*</POST>\s*", value, re.I | re.S) and "Synthese readonly depuis source-pack" not in value:
             return value
     sources = []
     for key in ("final_answer_source", "response_source", "source", "engine_status"):
