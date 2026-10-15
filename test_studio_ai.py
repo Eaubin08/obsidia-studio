@@ -65,6 +65,16 @@ class LocalAIContractTests(unittest.TestCase):
             with self.assertRaisesRegex(studio_ai.InferenceError, "TERMINAL_DIALOGUE_IDENTITY"):
                 studio_ai.generate("Rédige un post")
 
+    def test_echoed_post_instruction_is_not_a_generated_draft(self):
+        diagnostic = (
+            "Synthese readonly depuis source-pack.\\n"
+            "- Requete : Reponds sous la forme <POST>texte redige</POST>.\\n"
+            "- Familles consultees : READINESS, GAP_MATRIX"
+        )
+        with patch.object(studio_ai, "_call", return_value={"response": diagnostic}):
+            with self.assertRaises(studio_ai.InferenceError):
+                studio_ai.generate("Pourquoi comprendre avant d'agir ?")
+
     def test_structured_post_preferred_over_identity(self):
         payload = {
             "response": "Je suis Brody.",
