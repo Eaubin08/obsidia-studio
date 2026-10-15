@@ -347,7 +347,7 @@ async function humanize() {
 async function generate(adapt) {
   const idea = $("gIdea").value.trim();
   if (!idea && !adapt) return toast("Écris d'abord une idée");
-  $("gOut").style.display = "block"; $("gOut").textContent = "Claude écrit… (jusqu'à quelques minutes)";
+  $("gOut").style.display = "block"; $("gOut").textContent = "Obsidia / Brody → Qwen rédige…";
   const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: idea || "adapter ce post", network: $("eNet").value, source_text: adapt ? $("eText").value : "", template: $("gTpl").value})});
   $("gOut").textContent = r.raw;
   if (r.text) { $("eText").value = r.text; count(); toast("Brouillon placé dans l'éditeur (non enregistré)"); }
