@@ -248,6 +248,15 @@ def generate(body: GenIn):
                "N'invente aucun chiffre, résultat ni anecdote : utilise {{placeholder}} si un fait manque. "
                "Réponds avec 3 accroches numérotées, puis le texte final entre les balises <POST> et </POST>, "
                "puis la liste des affirmations avec leur statut de preuve.")
+    # An explicitly chosen, independent Brody-native editorial mode exists
+    # for Studio. It is NOT a fallback from a denied Cognitive Ingress call.
+    # The original governed ingress remains fail-closed and unchanged.
+    editorial_mode = os.getenv("OBSIDIA_STUDIO_EDITORIAL_MODE", "governed_ingress")
+    if editorial_mode not in ("governed_ingress", "brody_native"):
+        raise HTTPException(503, "Mode éditorial Studio inconnu.")
+    use_ingress = editorial_mode == "governed_ingress" and os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1"
+    if editorial_mode == "brody_native" and os.getenv("OBSIDIA_STUDIO_ALLOW_BRODY_NATIVE") != "1":
+        raise HTTPException(503, "Mode Brody natif désactivé : activation explicite requise.")
     try:
         # The AMD router evaluates the *whole* request for execution intent.
         # Legacy local docs can contain historical "commit"/"push" commands;
@@ -277,10 +286,10 @@ def generate(body: GenIn):
                 )
         else:
             routed_prompt = _studio_context() + prompt
-        if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1":
+        if use_ingress:
             out, provenance = studio_ai.generate(routed_prompt, return_receipt=True)
         else:
-            out = studio_ai.generate(routed_prompt)
+            out = studio_ai.generate(routed_prompt, use_ingress=False)
             provenance = {"source": "BRODY_DIRECT_UNVERIFIED", "human_approval_required": True,
                           "publication_permitted": False, "brody_post_model_synthesis_proven": False}
     except studio_ai.InferenceError as exc:
