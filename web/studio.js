@@ -245,7 +245,7 @@ async function saveOptions() {
   if (await putPost({network: $("oNet").value, planned: $("oDate").value, time: $("oTime").value, status: $("oStatus").value, series: $("oSeries").value, notes: $("oNotes").value})) { toast("Réglages enregistrés"); pagePost(); }
 }
 async function writeIt(btn, idea, template) {
-  btn.disabled = true; btn.textContent = "Obsidia / Qwen rédige…";
+  btn.disabled = true; btn.textContent = "Brody rédige (Qwen si nécessaire)…";
   try {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: idea || [CUR.hook, CUR.notes].filter(Boolean).join(" — ") || "post", network: CUR.network, template: template || CUR.template || ""})});
     if (!r.text) { toast("Obsidia n'a pas rendu de texte exploitable"); return pagePost(); }
@@ -257,7 +257,7 @@ async function writeIt(btn, idea, template) {
   pagePost();
 }
 async function rewrite(btn) {
-  btn.disabled = true; btn.textContent = "Obsidia / Qwen réécrit…";
+  btn.disabled = true; btn.textContent = "Brody réécrit (Qwen si nécessaire)…";
   try {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: $("oIdea").value || "améliorer ce post", network: CUR.network, source_text: CUR.text, template: $("oTpl").value})});
     if (r.text) { await putPost({text: (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim(), template: $("oTpl").value}); toast("Réécrit"); }
@@ -332,7 +332,7 @@ async function wizard3(btn) {
   if (!idea) return toast("Écris une idée, même en quelques mots");
   WZ.date = $("wDate").value;
   btn.disabled = true;
-  $("sheet").innerHTML = `<div class="steps"><span>1 Type</span> · <span>2 Idée</span> · <b>3</b> Rédaction</div><div class="writing"><div class="spin"></div><h2>Obsidia / Qwen rédige ton post…</h2><p class="muted">Puis le nettoie et crée 3 images. Compte 1 à 3 minutes.</p></div>`;
+  $("sheet").innerHTML = `<div class="steps"><span>1 Type</span> · <span>2 Idée</span> · <b>3</b> Rédaction</div><div class="writing"><div class="spin"></div><h2>Brody rédige (Qwen si nécessaire) ton post…</h2><p class="muted">Puis le nettoie et crée 3 images. Compte 1 à 3 minutes.</p></div>`;
   try {
     const p = await api("/api/posts", {method: "POST", body: JSON.stringify({network: WZ.network, planned: WZ.date, time: META.networks[WZ.network].time, status: "idée", hook: idea.slice(0, 120), template: WZ.template, series: "Journal d'éducation d'Obsidia"})});
     await refresh(); CUR = POSTS.find(x => x.id === p.id);
