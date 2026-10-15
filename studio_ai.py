@@ -83,6 +83,38 @@ def generate(prompt, timeout=600):
         raise InferenceError("Réponse Brody non structurée.")
     if result.get("emits_act") is True or result.get("kernel_mutation") is True:
         raise InferenceError("Enveloppe Brody non conforme au contrat readonly.")
+    # The governed ingress returns plain final_response, not Brody's <POST>.
+    # Promote it to a DRAFT only with observed, applied local-model evidence;
+    # a router ALLOW alone, or a readable fallback, must never suffice.
+    if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1":
+        route = result.get("route_decision") or {}
+        stage = result.get("local_model_stage") or {}
+        guarded = (
+            result.get("status") == "READY_READONLY"
+            and result.get("readonly") is True
+            and result.get("advisory_only") is True
+            and result.get("decision_authority") == "KX108_ONLY"
+            and result.get("allowed_to_act") is False
+            and result.get("memory_write") is False
+            and result.get("emits_act") is False
+            and result.get("kernel_mutation") is False
+            and route.get("router_status") == "ROUTER_OK"
+            and route.get("fail_closed_hold") is False
+            and route.get("gate_verdict") == "ALLOW"
+            and stage.get("status") == "EVIDENCE_READY"
+            and stage.get("eligible") is True
+            and stage.get("attempted") is True
+            and stage.get("model_call_used") is True
+            and stage.get("evidence_applied") is True
+            and stage.get("tokens_remote") == 0
+        )
+        draft = result.get("final_response")
+        if not guarded or not isinstance(draft, str) or not draft.strip():
+            raise InferenceError("Ingress sans preuve Qwen appliquée ou enveloppe readonly conforme : aucun brouillon.")
+        # Text is a candidate requiring editorial/factual human review.
+        # Do not manufacture hooks or evidence claims not returned by cognition.
+        return "<POST>\\n" + draft.strip() + "\\n</POST>"
+
     # Les sorties Brody peuvent diverger : le final_answer peut être un
     # fallback identitaire alors que response_md exprime une limite épistémique.
     # On accepte un artefact éditorial UNIQUEMENT s'il est présent explicitement.
