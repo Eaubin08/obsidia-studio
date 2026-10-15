@@ -62,3 +62,26 @@ python server.py
 `GET /api/ai/status` indique la configuration et tente de consulter `/openapi.json`. La route `/api/brody/chat` attend `message`, `language`, `session_id`, `allow_provider` ; la réponse doit fournir un texte sous `response`, `final_answer` ou `response_md`. La conformité effective au runtime actuel doit encore être testée sur le PC. L'absence d'API (ou de Qwen interne) produit une erreur explicite, **jamais un appel direct silencieux de Studio vers Qwen ni Claude**.
 
 Les contextes locaux sont lus par le serveur Studio ; seules les preuves `public=true` sont incluses dans l'extrait de la banque de preuves. Les textes générés restent des propositions, sans autorité d'exécution ni publication automatique. `data/` est exclu de Git.
+
+
+## Moteur éditorial local indépendant (Studio uniquement)
+
+Le mode `studio_local_model` demande un véritable brouillon à un modèle déjà
+disponible sur **Ollama local**, via `http://127.0.0.1:11434/api/chat`.
+Il n'édite ni Jarvis, ni Brody, ni aucun autre dépôt. Il **n'est pas** un
+repli automatique après HOLD : il faut le sélectionner explicitement.
+Ce brouillon est identifié comme `STUDIO_LOCAL_OLLAMA`, jamais comme Brody.
+
+Dans PowerShell, avant de lancer Studio :
+
+```powershell
+$env:OBSIDIA_STUDIO_EDITORIAL_MODE="studio_local_model"
+$env:OBSIDIA_STUDIO_OLLAMA_MODEL="nom-exact-du-modele-deja-installe"
+python server.py
+```
+
+Vérifier les modèles disponibles avec `ollama list`. Si Ollama ou le
+modèle ne sont pas installés, le mode renvoie une erreur explicite ;
+aucun texte préfabriqué n'est prétendu généré. Le modèle n'effectue aucune
+publication : vérification et approbation humaine restent nécessaires.
+Les modes `governed_ingress` et `brody_native` sont conservés séparément.
