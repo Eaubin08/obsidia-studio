@@ -91,10 +91,23 @@ def main(argv=None):
     if suff.get("status") == "GOVERNANCE_BOUNDARY" or route.get("gate_verdict") in ("HOLD", "BLOCK"):
         print("VERDICT=UPSTREAM_GOVERNANCE_BOUNDARY_NOT_STUDIO_PARSER")
         return 3
-    if not details["final_answer_present"]:
-        print("VERDICT=NO_EDITORIAL_MATERIAL")
-        return 4
-    print("VERDICT=COGNITIVE_MATERIAL_PRESENT_REVIEW_REQUIRED")
+    if route.get("gate_verdict") != "ALLOW":
+        print("VERDICT=ROUTE_NOT_ALLOWED_" + str(route.get("gate_verdict")))
+        return 5
+    if suff.get("status") not in ("BRODY_SUFFICIENT", "BRODY_INSUFFICIENT"):
+        print("VERDICT=BRODY_NOT_EDITORIAL_READY_" + str(suff.get("status")))
+        return 6
+    try:
+        # Same contract as Studio, without posting or generating images.
+        from unittest.mock import patch
+        with patch.object(studio_ai, "_ingress_call", return_value=result):
+            artifact, receipt = studio_ai.generate(prompt, return_receipt=True, use_ingress=True)
+    except studio_ai.InferenceError:
+        print("VERDICT=STUDIO_EDITORIAL_CONTRACT_REJECTED")
+        return 7
+    print("EDITORIAL_ARTIFACT_CHARS=" + str(len(artifact)))
+    print("PROVENANCE_SOURCE=" + str(receipt.get("source")))
+    print("VERDICT=VERIFIED_EDITORIAL_DRAFT_REVIEW_REQUIRED")
     return 0
 
 
