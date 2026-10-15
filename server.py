@@ -223,7 +223,7 @@ def humanize(body: DocIn):
     return {"text": text, "report": h.stderr, "score": score}
 
 
-# ---------------------------------------------------------------- génération (Claude Code)
+# ---------------------------------------------------------------- génération (Brody / Obsidia)
 @app.post("/api/generate")
 def generate(body: GenIn):
     net = NETWORKS.get(body.network)
@@ -234,7 +234,7 @@ def generate(body: GenIn):
         prompt = (f"Écris une publication LinkedIn en français sur : {body.idea}. "
                   "Respecte la voix fournie dans le contexte et n’invente aucun fait.")
     else:
-        prompt = (f"Lis ~/.claude/linkedin/voice.md et respecte-le strictement. "
+        prompt = (f"Respecte le contexte éditorial injecté et les preuves publiques. "
                   f"Écris un post pour {net['label']} ({net['hint']}, limite {net['limit']} caractères). "
                   f"Idée : {body.idea}\n")
         if body.source_text:
@@ -252,7 +252,9 @@ def generate(body: GenIn):
     except studio_ai.InferenceError as exc:
         raise HTTPException(503, str(exc)) from exc
     m = re.search(r"<POST>\s*(.*?)\s*</POST>", out, re.S)
-    return {"raw": out, "text": m.group(1).strip() if m else ""}
+    if not m or not m.group(1).strip():
+        raise HTTPException(502, "Brody joignable mais aucune publication <POST> reçue. Réponse consultative non exploitable, aucun brouillon généré.")
+    return {"raw": out, "text": m.group(1).strip()}
 
 
 # ---------------------------------------------------------------- images
