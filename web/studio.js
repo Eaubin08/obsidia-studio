@@ -13,6 +13,23 @@ async function api(url, opt = {}) {
   }
   return r.json();
 }
+// Informational receipt only: local session display, never a publishing permission.
+function rememberCognitiveSource(postId, receipt) {
+  if (!postId || !receipt || typeof receipt !== "object") return;
+  try { sessionStorage.setItem("obsidia-studio-cognitive:" + postId, JSON.stringify(receipt)); } catch (_) {}
+}
+function cognitiveSourceCard(postId) {
+  let receipt;
+  try { receipt = JSON.parse(sessionStorage.getItem("obsidia-studio-cognitive:" + postId) || "null"); } catch (_) { return ""; }
+  if (!receipt) return "";
+  const label = receipt.source === "BRODY_NATIVE" ? "Brody seul" :
+    receipt.source === "GOVERNED_MODEL_PROJECTION" ? "Brody + contribution Qwen gouvernée" :
+    "Origine cognitive non vérifiée";
+  const synthesis = receipt.brody_post_model_synthesis_proven === true
+    ? "Synthèse post-modèle attestée" : "Synthèse Brody post-Qwen non démontrée";
+  return `<div class="panel"><h3>Provenance cognitive</h3><p><b>${esc(label)}</b></p>
+    <p class="muted">${esc(synthesis)} · Brouillon à valider humainement · Aucune publication autorisée par ce reçu.</p></div>`;
+}
 function toast(m) { const t = $("toast"); t.textContent = m; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 3800); }
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 function mondayOf(d) { const x = new Date(d); x.setHours(12); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
@@ -174,6 +191,7 @@ async function pagePost() {
           ${blocking.length ? `<ul class="bad">${blocking.map(i => `<li>${esc(i.msg)}</li>`).join("")}</ul>` : ""}
           ${tips.length ? `<details class="tips"><summary>${tips.length} conseil(s)</summary><ul>${tips.map(i => `<li>${esc(i.msg)}</li>`).join("")}</ul></details>` : ""}
         </div>
+        ${cognitiveSourceCard(p.id)}
         <div class="big-actions">
           ${!p.text ? `<button class="b p xl" onclick="writeIt(this)">✎ Faire rédiger par Obsidia</button><button class="b xl" onclick="EDITING=true;pagePost()">Rédiger manuellement (sans quota)</button><p class="muted">La rédaction de posts utilise Obsidia / Brody → Qwen local. D'autres outils du Studio utilisent encore Claude Code. Les images du Studio sont rendues localement par Chrome.</p>` : `
           <button class="b p xl" onclick="copyText()">Copier le texte</button>
@@ -260,7 +278,7 @@ async function rewrite(btn) {
   btn.disabled = true; btn.textContent = "Brody réécrit (Qwen si nécessaire)…";
   try {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: $("oIdea").value || "améliorer ce post", network: CUR.network, source_text: CUR.text, template: $("oTpl").value})});
-    if (r.text) { await putPost({text: (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim(), template: $("oTpl").value}); toast("Réécrit"); }
+    if (r.text) { rememberCognitiveSource(CUR.id, r.provenance); await putPost({text: (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim(), template: $("oTpl").value}); toast("Réécrit"); }
   } catch (e) { toast("Erreur : " + e.message); }
   pagePost();
 }
@@ -338,6 +356,7 @@ async function wizard3(btn) {
     await refresh(); CUR = POSTS.find(x => x.id === p.id);
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea, network: WZ.network, template: WZ.template})});
     if (r.text) {
+      rememberCognitiveSource(p.id, r.provenance);
       const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
       await putPost({text: cleaned, status: "brouillon", hook: cleaned.split("\n")[0].slice(0, 120)});
       CUR = await api(`/api/posts/${p.id}/variants`, {method: "POST", body: JSON.stringify({})});
