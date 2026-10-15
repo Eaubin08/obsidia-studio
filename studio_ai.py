@@ -69,7 +69,36 @@ def _ingress_call(prompt, timeout):
         raise InferenceError("Ingress local indisponible : " + str(exc)[:200]) from exc
 
 
-def generate(prompt, timeout=600):
+
+
+def _editorial_provenance(result):
+    """Report observed source, never infer a Brody synthesis from a Qwen join."""
+    suff = result.get("brody_sufficiency") or {}
+    stage = result.get("local_model_stage") or {}
+    final = result.get("final_answer_snapshot") or {}
+    if not isinstance(final, dict):
+        final = {}
+    qwen_applied = stage.get("evidence_applied") is True
+    if qwen_applied:
+        # The current final adapter can select projection_content unchanged.
+        # A cognitive join is NOT evidence of a new Brody composition.
+        source = "GOVERNED_MODEL_PROJECTION"
+    elif suff.get("status") == "BRODY_SUFFICIENT":
+        source = "BRODY_NATIVE"
+    else:
+        source = "UNKNOWN"
+    return {
+        "source": source,
+        "brody_sufficient": suff.get("status") == "BRODY_SUFFICIENT",
+        "qwen_evidence_applied": qwen_applied,
+        "brody_post_model_synthesis_proven": False,
+        "human_approval_required": True,
+        "publication_permitted": False,
+        "final_adapter_status": final.get("v1_4_12a_status_tag"),
+        "projection_selected": final.get("governed_model_projection_selected"),
+    }
+
+def generate(prompt, timeout=600, *, return_receipt=False):
     """Lecture/proposition cognitive uniquement ; aucune autorité d'action Studio."""
     payload = {
         "message": prompt, "language": "fr",
@@ -148,7 +177,8 @@ def generate(prompt, timeout=600):
             raise InferenceError("Ingress sans artefact éditorial vérifié : aucun brouillon. " + details)
         # Text is a candidate requiring editorial/factual human review.
         # Do not manufacture hooks or evidence claims not returned by cognition.
-        return "<POST>\\n" + draft.strip() + "\\n</POST>"
+        artifact = "<POST>\\n" + draft.strip() + "\\n</POST>"
+        return (artifact, _editorial_provenance(result)) if return_receipt else artifact
 
     # Les sorties Brody peuvent diverger : le final_answer peut être un
     # fallback identitaire alors que response_md exprime une limite épistémique.
