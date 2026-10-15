@@ -68,11 +68,8 @@ def main(argv=None):
     if os.getenv("OBSIDIA_STUDIO_ENABLE_INGRESS") != "1":
         print("ERROR=OBSIDIA_STUDIO_ENABLE_INGRESS must be 1")
         return 2
-    prompt = (
-        "Proposition de texte éditorial consultatif pour LinkedIn, en français. "
-        "Sujet : " + opts.subject.strip() + ". "
-        "Contenu destiné à une relecture humaine, fondé sur les seuls faits fournis."
-    )
+    from editorial_intent import explanatory_editorial_request
+    prompt = explanatory_editorial_request(opts.subject, network="LinkedIn")
     try:
         result = studio_ai._ingress_call(prompt, opts.timeout)
     except studio_ai.InferenceError as exc:
