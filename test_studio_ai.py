@@ -6,6 +6,12 @@ import studio_ai
 
 
 class LocalAIContractTests(unittest.TestCase):
+    def setUp(self):
+        # Every test starts offline in Brody-only mode regardless of shell flags.
+        self._mode = patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "0"})
+        self._mode.start()
+        self.addCleanup(self._mode.stop)
+
     def test_loopback_only(self):
         self.assertEqual(studio_ai._endpoint({"base_url": "http://127.0.0.1:8000"}),
                          "http://127.0.0.1:8000/api/brody/chat")
