@@ -175,7 +175,7 @@ async function pagePost() {
           ${tips.length ? `<details class="tips"><summary>${tips.length} conseil(s)</summary><ul>${tips.map(i => `<li>${esc(i.msg)}</li>`).join("")}</ul></details>` : ""}
         </div>
         <div class="big-actions">
-          ${!p.text ? `<button class="b p xl" onclick="writeIt(this)">✎ Faire rédiger par Claude</button>` : `
+          ${!p.text ? `<button class="b p xl" onclick="writeIt(this)">✎ Faire rédiger par Claude</button><button class="b xl" onclick="EDITING=true;pagePost()">Rédiger manuellement (sans quota)</button><p class="muted">Claude Code est appelé uniquement lorsque tu demandes une génération. Les images du Studio sont rendues localement par Chrome.</p>` : `
           <button class="b p xl" onclick="copyText()">Copier le texte</button>
           <button class="b xl" onclick="copyImg()" ${p.image ? "" : "disabled"}>Copier l'image</button>
           <button class="b xl" onclick="EDITING=true;pagePost()">Modifier le texte</button>
@@ -229,7 +229,7 @@ async function putPost(changes, force) {
     toast("Erreur : " + e.message); return false;
   }
 }
-async function saveText() { if (await putPost({text: $("edText").value})) { EDITING = false; toast("Enregistré"); pagePost(); } }
+async function saveText() { const text = $("edText").value; if (await putPost({text, status: text.trim() && CUR.status === "idée" ? "brouillon" : CUR.status})) { EDITING = false; toast("Brouillon enregistré"); pagePost(); } }
 async function cleanText() { const r = await api("/api/humanize", {method: "POST", body: JSON.stringify({content: $("edText").value})}); $("edText").value = r.text.trim(); $("edText").oninput(); toast("Style nettoyé (mêmes idées, moins de tics)"); }
 async function setStatus(s) { if (await putPost({status: s})) { toast(s === "validé" ? "Validé ✓" : "Marqué comme publié"); pagePost(); topBar(); } }
 async function copyText() { await navigator.clipboard.writeText(CUR.text); toast("Texte copié : colle-le sur " + NL(CUR.network)); }
