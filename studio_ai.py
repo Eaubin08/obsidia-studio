@@ -57,10 +57,24 @@ def generate(prompt, timeout=600):
         raise InferenceError("Réponse Brody non structurée.")
     if result.get("emits_act") is True or result.get("kernel_mutation") is True:
         raise InferenceError("Enveloppe Brody non conforme au contrat readonly.")
-    answer = result.get("response") or result.get("final_answer") or result.get("response_md")
-    if not isinstance(answer, str) or not answer.strip():
-        raise InferenceError("Brody n'a renvoyé aucune proposition textuelle exploitable.")
-    return answer
+    # Les sorties Brody peuvent diverger : le final_answer peut être un
+    # fallback identitaire alors que response_md exprime une limite épistémique.
+    # On accepte un artefact éditorial UNIQUEMENT s'il est présent explicitement.
+    import re
+    for field in ("response", "final_answer", "response_md"):
+        value = result.get(field)
+        if isinstance(value, str) and re.search(r"<POST>\\s*\\S[\\s\\S]*?</POST>", value, re.I):
+            return value
+    sources = []
+    for key in ("final_answer_source", "response_source", "source", "engine_status"):
+        value = result.get(key)
+        if isinstance(value, str) and value:
+            sources.append(key + "=" + value[:80])
+    summary = "; ".join(sources) or "source_non_renseignée"
+    raise InferenceError(
+        "Brody a répondu sans artefact éditorial <POST>. "
+        "Aucun brouillon produit. Diagnostic : " + summary
+    )
 
 
 def probe(timeout=2):
