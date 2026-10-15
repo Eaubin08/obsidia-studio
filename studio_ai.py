@@ -98,10 +98,31 @@ def _editorial_provenance(result):
         "projection_selected": final.get("governed_model_projection_selected"),
     }
 
+def _native_editorial_request(subject):
+    """Request actual authored content from Brody's existing chat interface.
+
+    Used ONLY on the native Brody endpoint. The governed ingress always gets
+    the user's original text so Studio does not misrepresent its intent.
+    """
+    if not isinstance(subject, str) or not subject.strip():
+        raise InferenceError("Sujet éditorial vide.")
+    return (
+        "Tâche de rédaction consultative, sans action externe ni publication.\\n"
+        "Rédige en français un brouillon de publication LinkedIn original et "
+        "lisible sur le sujet ci-dessous. Explique le fond et ses limites; "
+        "n'invente ni chiffres, ni tests, ni réalisations, ni citations. "
+        "Si les preuves sont insuffisantes, formule les éléments comme des "
+        "hypothèses ou des questions, sans affirmations invérifiables. "
+        "Réponds uniquement sous la forme <POST>texte rédigé</POST>. "
+        "Ne te présente pas et ne décris pas tes règles.\\n\\n"
+        "SUJET / CONTEXTE FOURNI :\\n" + subject.strip()
+    )
+
+
 def generate(prompt, timeout=600, *, return_receipt=False, use_ingress=None):
     """Lecture/proposition cognitive uniquement ; aucune autorité d'action Studio."""
     payload = {
-        "message": prompt, "language": "fr",
+        "message": _native_editorial_request(prompt), "language": "fr",
         "session_id": "obsidia-studio-editorial",
         # Le runtime Brody observé indique DISABLED_BY_POLICY lorsque True.
         # Ne pas promettre ni forcer un recours à Qwen depuis Studio.
