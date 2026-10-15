@@ -422,10 +422,10 @@ def _studio_context():
                     content = json.dumps([p for p in data.get("items", []) if isinstance(p, dict) and p.get("public") is True], ensure_ascii=False)
                 else:
                     content = "[]"
-            parts.append(f"<context label={label!r}>\\n{content[:12000]}\\n</context>")
+            parts.append(f"<context label={label!r}>\n{content[:12000]}\n</context>")
         except (OSError, ValueError):
             continue
-    return "\\n".join(parts) + "\\n\\n"
+    return "\n".join(parts) + "\n\n"
 
 
 def claude(prompt: str, timeout: int = 600) -> str:
