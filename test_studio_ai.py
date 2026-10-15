@@ -138,6 +138,37 @@ class LocalAIContractTests(unittest.TestCase):
                 with self.assertRaises(studio_ai.InferenceError):
                     studio_ai.generate("Rédige")
 
+    def test_provenance_receipt_brody_and_qwen(self):
+        base = {
+            "status": "READY_READONLY", "readonly": True, "advisory_only": True,
+            "decision_authority": "KX108_ONLY", "allowed_to_act": False,
+            "emits_act": False, "kernel_mutation": False,
+            "route_decision": {"router_status": "ROUTER_OK", "fail_closed_hold": False,
+                               "gate_verdict": "ALLOW"},
+            "final_response": "Texte éditorial consultatif.",
+        }
+        suff = {"status": "BRODY_SUFFICIENT", "sufficient": True,
+                "next_stage": "LOCAL_STACK_RESULT", "brody_boundary_ok": True,
+                "output_contract_ok": True, "contradictions": [], "risk_flags": []}
+        qwen_suff = {"status": "BRODY_INSUFFICIENT", "next_stage": "LOCAL_MODEL_GATE"}
+        qwen_stage = {"status": "EVIDENCE_READY", "eligible": True, "attempted": True,
+                      "model_call_used": True, "evidence_applied": True, "tokens_remote": 0}
+        env = {"OBSIDIA_STUDIO_USE_INGRESS": "1", "OBSIDIA_STUDIO_ENABLE_INGRESS": "1"}
+        brody = {**base, "brody_sufficiency": suff,
+                 "local_model_stage": {"status": "SKIPPED", "model_call_used": False}}
+        qwen = {**base, "brody_sufficiency": qwen_suff,
+                "local_model_stage": qwen_stage,
+                "final_answer_snapshot": {"governed_model_projection_selected": True}}
+        for payload, expected in ((brody, "BRODY_NATIVE"), (qwen, "GOVERNED_MODEL_PROJECTION")):
+            with self.subTest(expected=expected), patch.dict(os.environ, env):
+                with patch.object(studio_ai, "_ingress_call", return_value=payload):
+                    artifact, receipt = studio_ai.generate("Question", return_receipt=True)
+                    self.assertIn("<POST>", artifact)
+                    self.assertEqual(receipt["source"], expected)
+                    self.assertFalse(receipt["brody_post_model_synthesis_proven"])
+                    self.assertTrue(receipt["human_approval_required"])
+                    self.assertFalse(receipt["publication_permitted"])
+
     def test_default_status_is_configuration_only(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
             st = studio_ai.status()
