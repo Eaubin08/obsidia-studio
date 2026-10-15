@@ -304,7 +304,28 @@ async function wizard2() {
     <div class="row"><div><label>Date</label><input type="date" id="wDate" value="${WZ.date}"></div></div>
     <label>Ton idée, ou ce qui s'est passé</label><textarea id="wIdea" class="short" placeholder="ex. Brody fusionnait deux hypothèses : j'ai ajouté une règle pour qu'il les garde séparées"></textarea>
     ${journal.length ? `<label>Ou pars d'un fait récent de ton journal</label><div class="facts">${journal.map(l => `<button class="fact" onclick="$('wIdea').value=this.textContent">${esc(l.replace(/^- /, ""))}</button>`).join("")}</div>` : ""}
-    <div class="actions"><button class="b p" onclick="wizard3(this)">Faire rédiger par Claude</button><button class="b" onclick="wizard()">← Retour</button></div>`;
+    <div class="actions"><button class="b p" onclick="wizard3(this)">Faire rédiger par Claude</button><button class="b" onclick="wizardSaveIdea(this)">Enregistrer l'idée seule</button><button class="b" onclick="wizard()">← Retour</button></div>`;
+}
+// Le mode brouillon manuel ne consomme aucun quota Claude et conserve l'idée localement.
+async function wizardSaveIdea(btn) {
+  const idea = $("wIdea")?.value.trim() || "";
+  if (!idea) return toast("Écris une idée, même en quelques mots");
+  WZ.date = $("wDate").value;
+  btn.disabled = true;
+  try {
+    const p = await api("/api/posts", {method: "POST", body: JSON.stringify({
+      network: WZ.network, planned: WZ.date, time: META.networks[WZ.network].time,
+      status: "idée", hook: idea.slice(0, 120), notes: idea, template: WZ.template,
+      series: "Journal d'éducation d'Obsidia"
+    })});
+    closeModal();
+    EDITING = false;
+    await openPost(p.id);
+    toast("Idée enregistrée — aucune génération IA lancée");
+  } catch (e) {
+    btn.disabled = false;
+    toast("Impossible d'enregistrer : " + e.message);
+  }
 }
 async function wizard3(btn) {
   const idea = $("wIdea").value.trim();
