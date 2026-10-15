@@ -13,7 +13,8 @@ def explanatory_editorial_request(subject: str, network: str = "LinkedIn", sourc
     if subject.endswith("?"):
         prompt = subject
     else:
-        prompt = f"Pourquoi {subject.rstrip('.')} ?"
+        # A topic is not necessarily a why-question. Do not change its intent.
+        prompt = subject
     # Sources are optional additional evidence only; they are not directives
     # to perform actions or claims that Brody has acquired knowledge.
     if source_text.strip():
