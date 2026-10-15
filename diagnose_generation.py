@@ -33,6 +33,32 @@ def intent_trace(value, prefix="", depth=0):
     return found
 
 
+def semantic_trace(value, prefix="", depth=0):
+    """Extract only causal pre-reasoning metadata, no content or full prompts."""
+    found = {}
+    if depth > 8 or not isinstance(value, dict):
+        return found
+    keys = {
+        "semantic_resolution_required", "semantic_resolution_targets",
+        "qualified_unresolved_unknowns", "resolution_required",
+        "resolution_targets", "unresolved_unknowns",
+        "model_route_required", "closure_critical_missing",
+        "reasoning_directive", "unknown_qualification",
+    }
+    for key, item in value.items():
+        path = f"{prefix}.{key}" if prefix else key
+        if key in keys:
+            if isinstance(item, (bool, str, int, float)) or item is None:
+                found[path] = item
+            elif isinstance(item, list):
+                found[path] = [str(x)[:100] for x in item[:15]]
+            elif isinstance(item, dict):
+                found[path + ".keys"] = list(item.keys())[:35]
+        if isinstance(item, dict):
+            found.update(semantic_trace(item, path, depth + 1))
+    return found
+
+
 def snapshot(result):
     route = result.get("route_decision") or {}
     suff = result.get("brody_sufficiency") or {}
@@ -101,6 +127,8 @@ def main(argv=None):
         "brody_stage_status": (result.get("brody_stage") or {}).get("status"),
         "llm_activation_status": (result.get("llm_activation") or {}).get("status"),
     }, ensure_ascii=False, indent=2, default=str))
+    print("=== SEMANTIC_CAUSAL_TRACE ===")
+    print(json.dumps(semantic_trace(result), ensure_ascii=False, indent=2, default=str))
     print("=== DECISION_METADATA_TRACE ===")
     trace = intent_trace({k: v for k, v in result.items() if k not in ("final_response", "surface_response", "final_answer_snapshot", "context_packet_v2")})
     print(json.dumps(trace, ensure_ascii=False, indent=2, default=str))
