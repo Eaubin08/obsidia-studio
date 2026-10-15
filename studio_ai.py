@@ -45,6 +45,30 @@ def _call(payload, timeout):
         raise InferenceError("API Brody indisponible ou réponse invalide : " + str(exc)[:240]) from exc
 
 
+def _ingress_call(prompt, timeout):
+    """Opt-in governed ingress. No direct Qwen access from Studio."""
+    if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") != "1":
+        return None
+    if os.getenv("OBSIDIA_STUDIO_ENABLE_INGRESS") != "1":
+        raise InferenceError("Ingress Studio non autorisé : OBSIDIA_STUDIO_ENABLE_INGRESS=1 requis.")
+    payload = {
+        "text": prompt,
+        "session_id": "obsidia-studio-editorial",
+        "allow_local_model": os.getenv("OBSIDIA_STUDIO_ENABLE_LOCAL_MODEL") == "1",
+    }
+    req = urllib.request.Request(
+        "http://127.0.0.1:8110/api/cognitive/ingress",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return json.loads(response.read(5_000_000).decode("utf-8"))
+    except (OSError, ValueError, TypeError) as exc:
+        raise InferenceError("Ingress local indisponible : " + str(exc)[:200]) from exc
+
+
 def generate(prompt, timeout=600):
     """Lecture/proposition cognitive uniquement ; aucune autorité d'action Studio."""
     payload = {
@@ -54,7 +78,7 @@ def generate(prompt, timeout=600):
         # Ne pas promettre ni forcer un recours à Qwen depuis Studio.
         "allow_provider": False,
     }
-    result = _call(payload, timeout)
+    result = _ingress_call(prompt, timeout) if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1" else _call(payload, timeout)
     if not isinstance(result, dict):
         raise InferenceError("Réponse Brody non structurée.")
     if result.get("emits_act") is True or result.get("kernel_mutation") is True:
