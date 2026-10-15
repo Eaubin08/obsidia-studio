@@ -181,6 +181,46 @@ class LocalAIContractTests(unittest.TestCase):
                     self.assertTrue(receipt["human_approval_required"])
                     self.assertFalse(receipt["publication_permitted"])
 
+    def test_real_post_wrapper_uses_newlines(self):
+        result = {
+            "status": "READY_READONLY", "readonly": True,
+            "decision_authority": "KX108_ONLY",
+            "route_decision": {"router_status": "ROUTER_OK", "fail_closed_hold": False,
+                               "gate_verdict": "ALLOW"},
+            "brody_sufficiency": {
+                "status": "BRODY_SUFFICIENT", "sufficient": True,
+                "next_stage": "LOCAL_STACK_RESULT", "brody_boundary_ok": True,
+                "output_contract_ok": True, "contradictions": [], "risk_flags": [],
+            },
+            "local_model_stage": {"model_call_used": False},
+            "final_response": "Brouillon à relire.",
+        }
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1"}):
+            with patch.object(studio_ai, "_ingress_call", return_value=result):
+                output = studio_ai.generate("Sujet")
+        self.assertEqual(output, "<POST>\\nBrouillon à relire.\\n</POST>")
+        self.assertNotIn(r"\\n", output)
+
+    def test_true_governance_boundary_is_never_promoted_to_a_draft(self):
+        result = {
+            "status": "READY_READONLY", "readonly": True,
+            "decision_authority": "KX108_ONLY",
+            "route_decision": {"router_status": "ROUTER_OK", "fail_closed_hold": False,
+                               "gate_verdict": "ALLOW"},
+            "brody_sufficiency": {
+                "status": "GOVERNANCE_BOUNDARY",
+                "next_stage": "KX108_GOVERNANCE",
+                "contradictions": ["REQUEST_REQUIRES_ACTION_OR_WRITE_BUT_ROUTE_IS_READONLY"],
+                "risk_flags": ["BOUNDARY_REQUEST"],
+            },
+            "local_model_stage": {"status": "SKIPPED", "evidence_applied": False},
+            "final_response": "Texte non autorisé.",
+        }
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1"}):
+            with patch.object(studio_ai, "_ingress_call", return_value=result):
+                with self.assertRaisesRegex(studio_ai.InferenceError, "GOVERNANCE_BOUNDARY"):
+                    studio_ai.generate("Sujet")
+
     def test_default_status_is_configuration_only(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
             st = studio_ai.status()
