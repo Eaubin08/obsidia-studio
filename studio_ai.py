@@ -116,7 +116,12 @@ def generate(prompt, timeout=600):
                        + ", readonly=" + str(result.get("readonly"))
                        + ", advisory=" + str(result.get("advisory_only"))
                        + ", status=" + str(result.get("status"))
-                       + ", route_reason=" + str(route.get("reason", ""))[:140])
+                       + ", route_reason=" + str(route.get("reason", ""))[:140]
+                       + ", brody_status=" + str((result.get("brody_sufficiency") or {}).get("status"))
+                       + ", brody_next=" + str((result.get("brody_sufficiency") or {}).get("next_stage"))
+                       + ", brody_reason=" + str((result.get("brody_sufficiency") or {}).get("reason"))[:120]
+                       + ", model_eligible=" + str(stage.get("eligible"))
+                       + ", model_enabled=" + str(stage.get("enabled_by_caller")))
             raise InferenceError("Ingress sans artefact éditorial vérifié : aucun brouillon. " + details)
         # Text is a candidate requiring editorial/factual human review.
         # Do not manufacture hooks or evidence claims not returned by cognition.
