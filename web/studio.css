@@ -203,7 +203,7 @@ textarea.doc{min-height:60vh;font-family:Consolas,monospace;font-size:13px;margi
 .atelier-col h3{display:flex;justify-content:space-between;align-items:center;text-transform:capitalize;font-size:15px;padding:4px 4px 10px;border-bottom:1px solid var(--line)}
 .atelier-card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
 .atelier-card .net{font-size:12px;margin-bottom:6px}
-.atelier-title{display:block;text-align:left;width:100%;border:0;background:none;color:var(--text);font:600 14px/1.4 inherit;cursor:pointer;overflow-wrap:anywhere;padding:0}
+.atelier-title{display:block;text-align:left;width:100%;border:0;background:none;color:var(--text);font-weight:600;font-size:14px;line-height:1.4;font-family:inherit;cursor:pointer;overflow-wrap:anywhere;padding:0}
 .atelier-title:hover{color:var(--accent)}
 .atelier-actions{display:flex;gap:6px;align-items:center;margin-top:12px}
 .atelier-actions select{min-width:0;flex:1;font-size:12px;padding:7px 5px}
