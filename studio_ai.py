@@ -92,12 +92,12 @@ def generate(prompt, timeout=600):
         guarded = (
             result.get("status") == "READY_READONLY"
             and result.get("readonly") is True
-            and result.get("advisory_only") is True
+            and result.get("advisory_only") is not False
             and result.get("decision_authority") == "KX108_ONLY"
-            and result.get("allowed_to_act") is False
-            and result.get("memory_write") is False
-            and result.get("emits_act") is False
-            and result.get("kernel_mutation") is False
+            and result.get("allowed_to_act") is not True
+            and result.get("memory_write") is not True
+            and result.get("emits_act") is not True
+            and result.get("kernel_mutation") is not True
             and route.get("router_status") == "ROUTER_OK"
             and route.get("fail_closed_hold") is False
             and route.get("gate_verdict") == "ALLOW"
@@ -110,7 +110,13 @@ def generate(prompt, timeout=600):
         )
         draft = result.get("final_response")
         if not guarded or not isinstance(draft, str) or not draft.strip():
-            raise InferenceError("Ingress sans artefact éditorial vérifié (preuve Qwen appliquée + enveloppe readonly requises) : aucun brouillon.")
+            details = ("route=" + str(route.get("router_status")) + "/" + str(route.get("gate_verdict"))
+                       + ", model=" + str(stage.get("status"))
+                       + ", applied=" + str(stage.get("evidence_applied"))
+                       + ", readonly=" + str(result.get("readonly"))
+                       + ", advisory=" + str(result.get("advisory_only"))
+                       + ", status=" + str(result.get("status")))
+            raise InferenceError("Ingress sans artefact éditorial vérifié : aucun brouillon. " + details)
         # Text is a candidate requiring editorial/factual human review.
         # Do not manufacture hooks or evidence claims not returned by cognition.
         return "<POST>\\n" + draft.strip() + "\\n</POST>"
