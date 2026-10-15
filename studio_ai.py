@@ -115,7 +115,8 @@ def generate(prompt, timeout=600):
                        + ", applied=" + str(stage.get("evidence_applied"))
                        + ", readonly=" + str(result.get("readonly"))
                        + ", advisory=" + str(result.get("advisory_only"))
-                       + ", status=" + str(result.get("status")))
+                       + ", status=" + str(result.get("status"))
+                       + ", route_reason=" + str(route.get("reason", ""))[:140])
             raise InferenceError("Ingress sans artefact éditorial vérifié : aucun brouillon. " + details)
         # Text is a candidate requiring editorial/factual human review.
         # Do not manufacture hooks or evidence claims not returned by cognition.
