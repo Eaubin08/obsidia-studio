@@ -50,7 +50,9 @@ def generate(prompt, timeout=600):
     payload = {
         "message": prompt, "language": "fr",
         "session_id": "obsidia-studio-editorial",
-        "allow_provider": True,
+        # Le runtime Brody observé indique DISABLED_BY_POLICY lorsque True.
+        # Ne pas promettre ni forcer un recours à Qwen depuis Studio.
+        "allow_provider": False,
     }
     result = _call(payload, timeout)
     if not isinstance(result, dict):
