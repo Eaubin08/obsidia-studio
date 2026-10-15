@@ -263,13 +263,16 @@ def generate(body: GenIn):
             subject = body.idea.strip()
             if not subject:
                 raise HTTPException(400, "idée requise")
+            # Readonly editorial material, not a command to execute, write,
+            # publish, or mutate any resource. Governance HOLD remains binding.
             routed_prompt = (
-                f"Rédige une courte publication {net['label']} en français sur : {subject}. "
-                "N'invente aucun fait ou chiffre. Ne publie rien."
+                f"Proposition de texte éditorial consultatif pour {net['label']}, "
+                f"en français. Sujet : {subject}. "
+                "Contenu destiné à une relecture humaine, fondé sur les seuls faits fournis."
             )
             if body.source_text.strip():
                 routed_prompt += (
-                    "\\nAdapte ce texte existant sans ajouter de faits :\\n"
+                    "\\nTexte source à reformuler pour relecture (aucun fait supplémentaire) :\\n"
                     + body.source_text.strip()[:6000]
                 )
         else:
