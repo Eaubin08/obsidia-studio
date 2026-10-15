@@ -101,12 +101,31 @@ def generate(prompt, timeout=600):
             and route.get("router_status") == "ROUTER_OK"
             and route.get("fail_closed_hold") is False
             and route.get("gate_verdict") == "ALLOW"
-            and stage.get("status") == "EVIDENCE_READY"
-            and stage.get("eligible") is True
-            and stage.get("attempted") is True
-            and stage.get("model_call_used") is True
-            and stage.get("evidence_applied") is True
-            and stage.get("tokens_remote") == 0
+            and (
+                # Two legitimate readonly paths: a sufficient Brody result,
+                # or evidence from the optional local model. Never require
+                # Qwen for every editorial request.
+                (
+                    (result.get("brody_sufficiency") or {}).get("status") == "BRODY_SUFFICIENT"
+                    and (result.get("brody_sufficiency") or {}).get("sufficient") is True
+                    and (result.get("brody_sufficiency") or {}).get("next_stage") == "LOCAL_STACK_RESULT"
+                    and (result.get("brody_sufficiency") or {}).get("brody_boundary_ok") is True
+                    and (result.get("brody_sufficiency") or {}).get("output_contract_ok") is True
+                    and (result.get("brody_sufficiency") or {}).get("contradictions") in ([], None)
+                    and (result.get("brody_sufficiency") or {}).get("risk_flags") in ([], None)
+                    and stage.get("model_call_used") is not True
+                )
+                or (
+                    (result.get("brody_sufficiency") or {}).get("status") == "BRODY_INSUFFICIENT"
+                    and (result.get("brody_sufficiency") or {}).get("next_stage") == "LOCAL_MODEL_GATE"
+                    and stage.get("status") == "EVIDENCE_READY"
+                    and stage.get("eligible") is True
+                    and stage.get("attempted") is True
+                    and stage.get("model_call_used") is True
+                    and stage.get("evidence_applied") is True
+                    and stage.get("tokens_remote") == 0
+                )
+            )
         )
         draft = result.get("final_response")
         if not guarded or not isinstance(draft, str) or not draft.strip():
