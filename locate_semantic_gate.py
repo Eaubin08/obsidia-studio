@@ -51,6 +51,18 @@ def main():
         for item in lines:
             print(item[:280])
     print("\nMATCH_COUNT=" + str(len(found)))
+    target = root / "scripts" / "obsidia_cognitive_ingress_v0.py"
+    if target.is_file():
+        lines = target.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+        interesting = [i for i, line in enumerate(lines)
+                       if "semantic_resolution_required" in line
+                       or "model_route_required" in line]
+        print("\\n=== SEMANTIC_PREDICATE_REFERENCES ===")
+        for i in interesting[:35]:
+            print(f"{i + 1}: {lines[i][:250]}")
+        print("\\n=== BRODY_GATE_CONTEXT_LINES_850_990 ===")
+        for i in range(849, min(990, len(lines))):
+            print(f"{i + 1}: {lines[i][:260]}")
     print("VERDICT=SEMANTIC_GATE_SOURCE_LOCATED")
 
 
