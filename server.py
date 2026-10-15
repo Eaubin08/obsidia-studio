@@ -143,7 +143,7 @@ class DocIn(BaseModel):
 # ---------------------------------------------------------------- API posts
 @app.get("/api/ai/status")
 def ai_status():
-    return studio_ai.status()
+    return {**studio_ai.status(), **studio_ai.probe()}
 
 
 @app.get("/api/meta")
@@ -201,10 +201,18 @@ def humanize(body: DocIn):
     src, out = tmp / f"in-{tag}.txt", tmp / f"out-{tag}.txt"
     src.write_text(body.content, encoding="utf-8")
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-    h = subprocess.run([sys.executable, "-I", str(HUMAN / "humanize.py"), str(src), "--lang", "fr",
-                        "-o", str(out), "--report"], capture_output=True, text=True, encoding="utf-8", env=env)
-    d = subprocess.run([sys.executable, "-I", str(HUMAN / "detect.py"), str(out), "--lang", "fr", "--json"],
-                       capture_output=True, text=True, encoding="utf-8", env=env)
+    if not (HUMAN / "humanize.py").is_file() or not (HUMAN / "detect.py").is_file():
+        src.unlink(missing_ok=True)
+        return {"text": body.content, "report": "Humanizer externe absent : texte inchangé.", "score": {"status": "not_run"}}
+    try:
+        h = subprocess.run([sys.executable, "-I", str(HUMAN / "humanize.py"), str(src), "--lang", "fr",
+                            "-o", str(out), "--report"], capture_output=True, text=True, encoding="utf-8", env=env, timeout=30)
+        d = subprocess.run([sys.executable, "-I", str(HUMAN / "detect.py"), str(out), "--lang", "fr", "--json"],
+                           capture_output=True, text=True, encoding="utf-8", env=env, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        src.unlink(missing_ok=True)
+        out.unlink(missing_ok=True)
+        return {"text": body.content, "report": "Humanizer indisponible : texte inchangé.", "score": {"status": "not_run"}}
     try:
         score = json.loads(d.stdout)
     except json.JSONDecodeError:
@@ -223,7 +231,8 @@ def generate(body: GenIn):
         raise HTTPException(400, "réseau inconnu")
     tpl = next((t for t in templates() if t["id"] == body.template), None)
     if body.network == "linkedin" and not body.source_text and not tpl:
-        prompt = f"/li-post {body.idea}"
+        prompt = (f"Écris une publication LinkedIn en français sur : {body.idea}. "
+                  "Respecte la voix fournie dans le contexte et n’invente aucun fait.")
     else:
         prompt = (f"Lis ~/.claude/linkedin/voice.md et respecte-le strictement. "
                   f"Écris un post pour {net['label']} ({net['hint']}, limite {net['limit']} caractères). "
