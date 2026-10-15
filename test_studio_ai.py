@@ -19,7 +19,7 @@ class LocalAIContractTests(unittest.TestCase):
             self.assertEqual(studio_ai.generate("Rédige"), "<POST>Bonjour</POST>")
         data = call.call_args.args[0]
         self.assertEqual(data["message"], "Rédige")
-        self.assertTrue(data["allow_provider"])
+        self.assertFalse(data["allow_provider"])
         self.assertEqual(data["language"], "fr")
 
     def test_reject_act(self):
