@@ -35,7 +35,7 @@ class LocalAIContractTests(unittest.TestCase):
         message = studio_ai._native_editorial_request(subject)
         self.assertIn(subject, message)
         self.assertIn("n'invente ni chiffres", message)
-        self.assertIn("\\n\\nSUJET / CONTEXTE FOURNI :\\n", message)
+        self.assertIn("\n\nSUJET / CONTEXTE FOURNI :\n", message)
         with self.assertRaises(studio_ai.InferenceError):
             studio_ai._native_editorial_request(" ")
 
