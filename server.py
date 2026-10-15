@@ -284,7 +284,26 @@ def generate(body: GenIn):
             provenance = {"source": "BRODY_DIRECT_UNVERIFIED", "human_approval_required": True,
                           "publication_permitted": False, "brody_post_model_synthesis_proven": False}
     except studio_ai.InferenceError as exc:
-        raise HTTPException(503, str(exc)) from exc
+        # Never retry a blocked cognitive request through another model.
+        # When actual source text was supplied by the user, Studio can still
+        # offer that exact text as an explicitly non-generated review draft.
+        detail = str(exc)
+        if "brody_status=GOVERNANCE_BOUNDARY" in detail:
+            if body.source_text.strip():
+                return {
+                    "raw": "",
+                    "text": clean_editorial_draft(body.source_text),
+                    "provenance": {
+                        "source": "USER_SOURCE_TEXT_ONLY",
+                        "brody_post_model_synthesis_proven": False,
+                        "human_approval_required": True,
+                        "publication_permitted": False,
+                        "cognitive_gate": "GOVERNANCE_BOUNDARY",
+                    },
+                    "warning": "Génération IA bloquée par gouvernance. Texte original uniquement : aucune reformulation IA.",
+                }
+            raise HTTPException(409, "Génération IA retenue par la gouvernance cognitive. Aucun brouillon inventé. Ajoutez un texte source pour conserver uniquement votre texte, ou corrigez la classification d'autorité en amont.") from exc
+        raise HTTPException(503, detail) from exc
     m = re.search(r"<POST>\s*(.*?)\s*</POST>", out, re.S)
     if not m or not m.group(1).strip():
         raise HTTPException(502, "Brody joignable mais aucune publication <POST> reçue. Réponse consultative non exploitable, aucun brouillon généré.")
