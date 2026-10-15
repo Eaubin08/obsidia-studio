@@ -273,13 +273,18 @@ def generate(body: GenIn):
                 )
         else:
             routed_prompt = _studio_context() + prompt
-        out = studio_ai.generate(routed_prompt)
+        if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1":
+            out, provenance = studio_ai.generate(routed_prompt, return_receipt=True)
+        else:
+            out = studio_ai.generate(routed_prompt)
+            provenance = {"source": "BRODY_DIRECT_UNVERIFIED", "human_approval_required": True,
+                          "publication_permitted": False, "brody_post_model_synthesis_proven": False}
     except studio_ai.InferenceError as exc:
         raise HTTPException(503, str(exc)) from exc
     m = re.search(r"<POST>\s*(.*?)\s*</POST>", out, re.S)
     if not m or not m.group(1).strip():
         raise HTTPException(502, "Brody joignable mais aucune publication <POST> reçue. Réponse consultative non exploitable, aucun brouillon généré.")
-    return {"raw": out, "text": m.group(1).strip()}
+    return {"raw": out, "text": m.group(1).strip(), "provenance": provenance}
 
 
 # ---------------------------------------------------------------- images
