@@ -267,6 +267,7 @@ async function writeIt(btn, idea, template) {
   try {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: idea || [CUR.hook, CUR.notes].filter(Boolean).join(" — ") || "post", network: CUR.network, template: template || CUR.template || ""})});
     if (!r.text) { toast("Obsidia n'a pas rendu de texte exploitable"); return pagePost(); }
+    rememberCognitiveSource(CUR.id, r.provenance);
     const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
     await putPost({text: cleaned, status: CUR.status === "idée" ? "brouillon" : CUR.status});
     btn.textContent = "Création des images…";
