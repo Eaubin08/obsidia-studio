@@ -11,6 +11,28 @@ import sys
 import studio_ai
 
 
+def intent_trace(value, prefix="", depth=0):
+    """Only categorical decision metadata; no full user text or model output."""
+    found = {}
+    if depth > 5 or len(found) > 100:
+        return found
+    if isinstance(value, dict):
+        for key, item in value.items():
+            name = str(key)
+            path = f"{prefix}.{name}" if prefix else name
+            if any(token in name.lower() for token in (
+                "intent", "request_type", "authority", "contradiction",
+                "risk_flag", "reason_code", "boundary_violation",
+            )):
+                if isinstance(item, (str, int, float, bool)) or item is None:
+                    found[path] = str(item)[:160]
+                elif isinstance(item, list):
+                    found[path] = [str(x)[:160] for x in item[:10]]
+            if isinstance(item, dict):
+                found.update(intent_trace(item, path, depth + 1))
+    return found
+
+
 def snapshot(result):
     route = result.get("route_decision") or {}
     suff = result.get("brody_sufficiency") or {}
@@ -61,6 +83,9 @@ def main(argv=None):
         return 2
     details = snapshot(result)
     print(json.dumps(details, ensure_ascii=False, indent=2, default=str))
+    print("=== DECISION_METADATA_TRACE ===")
+    trace = intent_trace({k: v for k, v in result.items() if k not in ("final_response", "surface_response", "final_answer_snapshot", "context_packet_v2")})
+    print(json.dumps(trace, ensure_ascii=False, indent=2, default=str))
     suff = result.get("brody_sufficiency") or {}
     route = result.get("route_decision") or {}
     if suff.get("status") == "GOVERNANCE_BOUNDARY" or route.get("gate_verdict") in ("HOLD", "BLOCK"):
