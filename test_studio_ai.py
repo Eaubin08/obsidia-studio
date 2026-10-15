@@ -198,7 +198,7 @@ class LocalAIContractTests(unittest.TestCase):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1"}):
             with patch.object(studio_ai, "_ingress_call", return_value=result):
                 output = studio_ai.generate("Sujet")
-        self.assertEqual(output, "<POST>\\nBrouillon à relire.\\n</POST>")
+        self.assertEqual(output, "<POST>\nBrouillon à relire.\n</POST>")
         self.assertNotIn(r"\\n", output)
 
     def test_true_governance_boundary_is_never_promoted_to_a_draft(self):
