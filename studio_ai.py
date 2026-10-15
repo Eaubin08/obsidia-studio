@@ -63,7 +63,7 @@ def generate(prompt, timeout=600):
     import re
     for field in ("response", "final_answer", "response_md"):
         value = result.get(field)
-        if isinstance(value, str) and re.search(r"<POST>\\s*\\S[\\s\\S]*?</POST>", value, re.I):
+        if isinstance(value, str) and re.search(r"<POST>(.+?)</POST>", value, re.I | re.S):
             return value
     sources = []
     for key in ("final_answer_source", "response_source", "source", "engine_status"):
