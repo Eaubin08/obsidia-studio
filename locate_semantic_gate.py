@@ -60,10 +60,28 @@ def main():
         print("\\n=== SEMANTIC_PREDICATE_REFERENCES ===")
         for i in interesting[:35]:
             print(f"{i + 1}: {lines[i][:250]}")
-        for first, last, label in [(635, 720, "SEMANTIC_RESOLUTION_DEFINITION"), (745, 800, "SEMANTIC_SIGNAL_OUTPUT"), (1010, 1075, "POST_GATE_CONDITIONS")]:
+        for first, last, label in [(480, 640, "PRE_REASONING_INPUTS_AND_QUALIFICATION"), (635, 720, "SEMANTIC_RESOLUTION_DEFINITION")]:
             print("\\n=== " + label + " ===")
             for i in range(first - 1, min(last, len(lines))):
                 print(f"{i + 1}: {lines[i][:260]}")
+        print("\\n=== UNKNOWN_QUALIFICATION_SOURCE_REFERENCES ===")
+        matches = []
+        for folder in ("apps/obsidia_api", "scripts", "periphery"):
+            base = root / folder
+            if not base.is_dir():
+                continue
+            for path in base.rglob("*.py"):
+                try:
+                    if path.stat().st_size > 1_500_000:
+                        continue
+                    for line_no, line in enumerate(path.read_text(encoding="utf-8-sig", errors="replace").splitlines(), 1):
+                        if "unknown_qualification" in line or "unresolved_unknowns" in line:
+                            matches.append((str(path.relative_to(root)), line_no, line.strip()[:220]))
+                except OSError:
+                    pass
+        for path, line_no, line in matches[:70]:
+            print(f"{path}:{line_no}: {line}")
+        print("UNKNOWN_REFERENCES=" + str(len(matches)))
     print("VERDICT=SEMANTIC_GATE_SOURCE_LOCATED")
 
 
