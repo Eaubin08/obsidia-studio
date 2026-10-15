@@ -32,7 +32,8 @@ for d in (POSTS, IMAGES, BACKUPS):
 
 sys.path.insert(0, str(ROOT))
 import visuals  # noqa: E402
-import studio_ai  # noqa: E402
+import studio_ai
+from editorial_cleanup import clean_editorial_draft  # noqa: E402
 
 # days = jours préférés (0 = lundi) : hypothèses éditoriales, modifiables, à vérifier par l'audit
 NETWORKS = {
@@ -284,7 +285,10 @@ def generate(body: GenIn):
     m = re.search(r"<POST>\s*(.*?)\s*</POST>", out, re.S)
     if not m or not m.group(1).strip():
         raise HTTPException(502, "Brody joignable mais aucune publication <POST> reçue. Réponse consultative non exploitable, aucun brouillon généré.")
-    return {"raw": out, "text": m.group(1).strip(), "provenance": provenance}
+    clean_text = clean_editorial_draft(m.group(1))
+    if not clean_text:
+        raise HTTPException(502, "La réponse éditoriale nettoyée est vide : brouillon refusé.")
+    return {"raw": out, "text": clean_text, "provenance": provenance}
 
 
 # ---------------------------------------------------------------- images
