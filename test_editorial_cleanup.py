@@ -30,6 +30,18 @@ class EditorialCleanupTests(unittest.TestCase):
         text = '"Comprendre" ne veut pas dire "décider".'
         self.assertEqual(clean_editorial_draft(text), text)
 
+    def test_echoed_instruction_not_part_of_post(self):
+        raw = ('"Le club a intégré des dossiers et des tâches. #Organisation"  '
+               "N'invente aucun fait ou chiffre.")
+        self.assertEqual(
+            clean_editorial_draft(raw),
+            "Le club a intégré des dossiers et des tâches. #Organisation",
+        )
+
+    def test_do_not_strip_normal_statement_about_facts(self):
+        text = "Nous n'inventons aucun fait ou chiffre dans nos rapports."
+        self.assertEqual(clean_editorial_draft(text), text)
+
     def test_no_fabrication(self):
         self.assertEqual(clean_editorial_draft("   "), "")
 
