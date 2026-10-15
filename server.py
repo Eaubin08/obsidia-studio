@@ -252,6 +252,20 @@ def generate(body: GenIn):
     # for Studio. It is NOT a fallback from a denied Cognitive Ingress call.
     # The original governed ingress remains fail-closed and unchanged.
     editorial_mode = os.getenv("OBSIDIA_STUDIO_EDITORIAL_MODE", "governed_ingress")
+    if editorial_mode == "studio_llamacpp":
+        # Explicit local Studio mode: never a fallback after a governed HOLD.
+        from studio_llamacpp import generate_llamacpp, EditorialEngineError
+        try:
+            draft = generate_llamacpp(
+                body.idea, network=net["label"], source_text=body.source_text
+            )
+        except EditorialEngineError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        cleaned = clean_editorial_draft(draft["text"])
+        if not cleaned.strip():
+            raise HTTPException(502, "Brouillon llama.cpp vide apres nettoyage.")
+        return {"raw": "", "text": cleaned,
+                "provenance": draft["provenance"], "warning": draft["warning"]}
     if editorial_mode == "studio_local_model":
         # Explicit Studio-owned editorial model route, not an automatic
         # fallback after a governed HOLD. No external repository is altered.
