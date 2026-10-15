@@ -268,6 +268,7 @@ async function writeIt(btn, idea, template) {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: idea || [CUR.hook, CUR.notes].filter(Boolean).join(" — ") || "post", network: CUR.network, template: template || CUR.template || ""})});
     if (!r.text) { toast("Obsidia n'a pas rendu de texte exploitable"); return pagePost(); }
     rememberCognitiveSource(CUR.id, r.provenance);
+    if (r.warning) toast(r.warning);
     const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
     await putPost({text: cleaned, status: CUR.status === "idée" ? "brouillon" : CUR.status});
     btn.textContent = "Création des images…";
@@ -279,7 +280,7 @@ async function rewrite(btn) {
   btn.disabled = true; btn.textContent = "Brody réécrit (Qwen si nécessaire)…";
   try {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: $("oIdea").value || "améliorer ce post", network: CUR.network, source_text: CUR.text, template: $("oTpl").value})});
-    if (r.text) { rememberCognitiveSource(CUR.id, r.provenance); await putPost({text: (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim(), template: $("oTpl").value}); toast("Réécrit"); }
+    if (r.text) { rememberCognitiveSource(CUR.id, r.provenance); if (r.warning) toast(r.warning); await putPost({text: (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim(), template: $("oTpl").value}); toast("Réécrit"); }
   } catch (e) { toast("Erreur : " + e.message); }
   pagePost();
 }
@@ -358,6 +359,7 @@ async function wizard3(btn) {
     const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea, network: WZ.network, template: WZ.template})});
     if (r.text) {
       rememberCognitiveSource(p.id, r.provenance);
+      if (r.warning) toast(r.warning);
       const cleaned = (await api("/api/humanize", {method: "POST", body: JSON.stringify({content: r.text})})).text.trim();
       await putPost({text: cleaned, status: "brouillon", hook: cleaned.split("\n")[0].slice(0, 120)});
       CUR = await api(`/api/posts/${p.id}/variants`, {method: "POST", body: JSON.stringify({})});
