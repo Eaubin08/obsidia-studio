@@ -98,7 +98,7 @@ def _editorial_provenance(result):
         "projection_selected": final.get("governed_model_projection_selected"),
     }
 
-def generate(prompt, timeout=600, *, return_receipt=False):
+def generate(prompt, timeout=600, *, return_receipt=False, use_ingress=None):
     """Lecture/proposition cognitive uniquement ; aucune autorité d'action Studio."""
     payload = {
         "message": prompt, "language": "fr",
@@ -107,7 +107,8 @@ def generate(prompt, timeout=600, *, return_receipt=False):
         # Ne pas promettre ni forcer un recours à Qwen depuis Studio.
         "allow_provider": False,
     }
-    result = _ingress_call(prompt, timeout) if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1" else _call(payload, timeout)
+    ingress_selected = (os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1") if use_ingress is None else (use_ingress is True)
+    result = _ingress_call(prompt, timeout) if ingress_selected else _call(payload, timeout)
     if not isinstance(result, dict):
         raise InferenceError("Réponse Brody non structurée.")
     if result.get("emits_act") is True or result.get("kernel_mutation") is True:
@@ -115,7 +116,7 @@ def generate(prompt, timeout=600, *, return_receipt=False):
     # The governed ingress returns plain final_response, not Brody's <POST>.
     # Promote it to a DRAFT only with observed, applied local-model evidence;
     # a router ALLOW alone, or a readable fallback, must never suffice.
-    if os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1":
+    if ingress_selected:
         route = result.get("route_decision") or {}
         stage = result.get("local_model_stage") or {}
         guarded = (
