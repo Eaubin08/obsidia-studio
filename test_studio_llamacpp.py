@@ -30,10 +30,11 @@ class LlamaCppStudioTests(unittest.TestCase):
             generate_llamacpp(" ")
 
     def test_real_model_content_and_provenance(self):
-        response = {"model": "local", "choices": [{"message": {"content": "Post original."}}]}
+        good_post = ("Une proposition ne suffit pas pour agir.\n\n" + "Brody analyse et propose. " * 8 + "\n\n" + "KX108 autorise selon des regles explicites. " * 6 + "\n\n" + "L executant agit uniquement dans le perimetre autorise. " * 3 + "\n\nLes receipts permettent une verification.")
+        response = {"model": "local", "choices": [{"message": {"content": good_post}}]}
         with patch("studio_llamacpp.urllib.request.urlopen", return_value=FakeResponse(response)) as call:
             result = generate_llamacpp("Gouvernance cognitive")
-        self.assertEqual(result["text"], "Post original.")
+        self.assertEqual(result["text"], good_post)
         self.assertEqual(result["provenance"]["source"], "STUDIO_LOCAL_LLAMACPP")
         self.assertFalse(result["provenance"]["publication_permitted"])
         req = call.call_args.args[0]
