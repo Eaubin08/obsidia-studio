@@ -27,11 +27,17 @@ class EditorialQualityTests(unittest.TestCase):
         self.assertFalse(assess("Sur LinkedIn je partage cette idée.")["ok"])
 
     def test_accepts_coherent_long_form(self):
-        body = ("Une proposition n'est pas une autorisation.\n\n"
-                + "Brody peut comprendre et proposer, sans autorité d'action. " * 5
-                + "\n\nKX108 décide de l'autorisation selon les règles. "
-                + "L'exécution, si elle est autorisée, reste contrôlée. " * 5
-                + "\n\nLes preuves et receipts rendent la décision traçable.")
+        body = (
+            "Une proposition ne constitue pas une autorisation.\n\n"
+            "Brody participe au travail de comprehension mais son analyse reste consultative. "
+            "Une incertitude doit etre conservee plutot que masquee dans une recommandation.\n\n"
+            "KX108 tranche dans le cadre des regles applicables et peut suspendre la demande. "
+            "Ce controle precede toute tentative d application pratique.\n\n"
+            "Un executant distinct intervient seulement quand le perimetre a ete autorise. "
+            "Les limites operationnelles sont alors explicites et verifiables.\n\n"
+            "Une preuve ou un receipt documente ensuite ce qui s est produit. "
+            "Cela permet de revoir la chaine de decisions sans confondre chaque responsabilite."
+        )
         self.assertTrue(assess(body)["ok"])
 
 
