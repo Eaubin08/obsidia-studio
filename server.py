@@ -33,6 +33,7 @@ for d in (POSTS, IMAGES, BACKUPS):
 sys.path.insert(0, str(ROOT))
 import visuals  # noqa: E402
 import studio_ai
+from studio_quality import assess as assess_editorial
 from editorial_cleanup import clean_editorial_draft  # noqa: E402
 
 # days = jours préférés (0 = lundi) : hypothèses éditoriales, modifiables, à vérifier par l'audit
@@ -171,6 +172,8 @@ def update_post(pid: str, body: PostIn, force: bool = False):
     post = load(pid)
     old_status = post.get("status")
     post.update(body.model_dump())
+    # User-editable copy is not a model-verification receipt.
+    post["editorial_quality"] = assess_editorial(post.get("text", ""), post.get("network", "linkedin"))
     if post["status"] in ("validé", "programmé") and old_status != post["status"] and not force:
         c = checklist(post)
         if not c["ok"]:
@@ -264,8 +267,9 @@ def generate(body: GenIn):
         cleaned = clean_editorial_draft(draft["text"])
         if not cleaned.strip():
             raise HTTPException(502, "Brouillon llama.cpp vide apres nettoyage.")
-        return {"raw": "", "text": cleaned,
-                "provenance": draft["provenance"], "warning": draft["warning"]}
+        quality = assess_editorial(cleaned, body.network)
+        return {"raw": "", "text": cleaned, "quality": quality,
+                "provenance": draft["provenance"], "warning": draft["warning"] + (" Vérification éditoriale : " + "; ".join(quality["issues"]) if quality["issues"] else "")}
     if editorial_mode == "studio_local_model":
         # Explicit Studio-owned editorial model route, not an automatic
         # fallback after a governed HOLD. No external repository is altered.
