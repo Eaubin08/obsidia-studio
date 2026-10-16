@@ -19,6 +19,14 @@ def assess(text, network="linkedin"):
         issues.append("Fragment non francais dans le texte.")
     if "kx108" in text.lower() and "consultatif" in text.lower():
         issues.append("Autorite erronee : KX108 ne doit pas etre presente comme consultatif.")
+    # Repeated blocks are a known failure mode of small local models.
+    normalized = re.sub(r"\\s+", " ", text).strip().lower()
+    for width in range(70, min(500, len(normalized) // 2) + 1, 10):
+        if normalized[:width] and normalized.count(normalized[:width]) >= 2:
+            issues.append("Repetition d un meme passage dans le post.")
+            break
+    if text.startswith(("# ", "## ", "### ", "\\\\### ")):
+        issues.append("Balises Markdown dans l accroche.")
     if network == "linkedin":
         if len(text) < 400:
             issues.append("Post tres court : manque de developpement.")
