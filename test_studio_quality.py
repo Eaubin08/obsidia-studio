@@ -3,6 +3,13 @@ from studio_quality import assess
 
 
 class EditorialQualityTests(unittest.TestCase):
+    def test_detects_repeated_post_and_heading(self):
+        block = "Comprendre puis proposer et verifier avant toute autorisation. " * 3
+        repeated = "### Pourquoi gouverner une IA\\n" + block * 3
+        issues = assess(repeated)["issues"]
+        self.assertTrue(any("Repetition" in issue for issue in issues))
+        self.assertTrue(any("Markdown" in issue for issue in issues))
+
     def test_rejects_wrong_authority(self):
         wrong = "L'IA doit comprendre, proposer et autoriser les actions."
         self.assertFalse(assess(wrong)["ok"])
