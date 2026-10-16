@@ -878,6 +878,14 @@ def checklist(post):
             add("conseil", "Lien dans le texte : le mettre plutôt en premier commentaire")
         if txt and len(txt) < 400:
             add("conseil", "Moins de 400 caractères : se lit comme une pensée, pas un post")
+    quality = assess_editorial(txt, post.get("network", "linkedin"))
+
+    for issue in quality["issues"]:
+
+        level = "bloquant" if issue.startswith("Autorite erronee") else "conseil"
+
+        add(level, "Qualité éditoriale : " + issue)
+
     if not post.get("planned"):
         add("conseil", "Pas de date prévue")
     first = txt.strip()[:200].lower()
