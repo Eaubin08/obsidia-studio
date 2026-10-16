@@ -41,6 +41,27 @@ class LlamaCppStudioTests(unittest.TestCase):
         sent = json.loads(req.data.decode("utf-8"))
         self.assertIn("Gouvernance cognitive", sent["messages"][1]["content"])
 
+    def test_single_revision_rescues_short_draft(self):
+        good = ("Une proposition n est pas une autorisation.\\n\\n"
+                + "Brody formule des propositions, sans autoriser. " * 7
+                + "\\n\\nKX108 decide du droit d agir dans un cadre formel. " * 6
+                + "\\n\\nUn executant controle applique seulement l autorisation accordee. " * 3)
+        bad = {"model": "local", "choices": [{"message": {"content": "Trop bref."}}]}
+        corrected = {"model": "local", "choices": [{"message": {"content": good}}]}
+        with patch("studio_llamacpp.urllib.request.urlopen",
+                   side_effect=[FakeResponse(bad), FakeResponse(corrected)]) as call:
+            result = generate_llamacpp("Gouvernance des actions")
+        self.assertEqual(result["text"], good)
+        self.assertEqual(call.call_count, 2)
+
+    def test_refuses_after_one_unsuccessful_revision(self):
+        bad = {"model": "local", "choices": [{"message": {"content": "Trop bref."}}]}
+        with patch("studio_llamacpp.urllib.request.urlopen",
+                   side_effect=[FakeResponse(bad), FakeResponse(bad)]) as call:
+            with self.assertRaises(EditorialEngineError):
+                generate_llamacpp("Gouvernance des actions")
+        self.assertEqual(call.call_count, 2)
+
     def test_refuse_empty_output(self):
         response = {"model": "local", "choices": [{"message": {"content": ""}}]}
         with patch("studio_llamacpp.urllib.request.urlopen", return_value=FakeResponse(response)):
