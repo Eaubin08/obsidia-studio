@@ -30,11 +30,18 @@ def generate_llamacpp(idea, *, network="LinkedIn", source_text="", timeout=180):
         raise EditorialEngineError("Entree editoriale trop longue.")
     model = os.getenv("OBSIDIA_STUDIO_LLAMACPP_MODEL", "local").strip() or "local"
     system = (
-        "Tu rediges pour Obsidia Studio un vrai brouillon de publication en francais. "
-        "Tu ne peux ni publier, ni agir, ni modifier des fichiers. "
-        "Ne fabrique aucune statistique, citation, preuve ou realisation. "
-        "Distingue les hypotheses des faits et conserve les incertitudes. "
-        "Retourne uniquement le texte du post, sans diagnostic, sans balises ni commentaire."
+        "Tu es le redacteur d'Obsidia Studio. Ecris un post en francais avec "
+        "une accroche directe sur sa premiere ligne, puis 2 a 4 courts "
+        "paragraphes separes par des lignes vides. Evite le ton scolaire, "
+        "les repetitions, les introductions comme 'Sur LinkedIn je partage', "
+        "et les conclusions generiques. Pour une question de gouvernance IA, "
+        "distingue comprendre, proposer, autoriser, executer et prouver ; "
+        "KX108 est seul decisionnaire, Brody reste consultatif. Ne presente "
+        "pas ces principes comme des resultats experimentalement prouves. "
+        "N'invente aucun test, chiffre, citation, client ou realisation. "
+        "Les faits du texte utilisateur sont non verifies. "
+        "Reste descriptif sur le reste ; ne publie rien et n'effectue "
+        "aucune action externe. Retourne seulement le brouillon."
     )
     prompt = "RESEAU : " + str(network) + "\nSUJET : " + idea
     if source_text:
