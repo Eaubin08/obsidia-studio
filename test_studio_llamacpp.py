@@ -30,7 +30,16 @@ class LlamaCppStudioTests(unittest.TestCase):
             generate_llamacpp(" ")
 
     def test_real_model_content_and_provenance(self):
-        good_post = ("Une proposition ne suffit pas pour agir.\n\n" + "Brody analyse et propose. " * 8 + "\n\n" + "KX108 autorise selon des regles explicites. " * 6 + "\n\n" + "L executant agit uniquement dans le perimetre autorise. " * 3 + "\n\nLes receipts permettent une verification.")
+        good_post = (
+            "Une proposition ne suffit pas pour autoriser une action.\n\n"
+            "Brody contribue a l analyse du contexte, sans pouvoir decider. "
+            "Une suggestion peut etre utile et pourtant rester incomplete.\n\n"
+            "KX108 examine les conditions et rend une decision selon les regles. "
+            "Le passage de la proposition a l autorisation exige donc un controle explicite.\n\n"
+            "Un composant distinct peut ensuite executer dans les limites accordees. "
+            "Si le cadre ne permet pas l action, cette derniere reste suspendue.\n\n"
+            "Les receipts et preuves rendent chaque etape retraçable pour une revue humaine."
+        )
         response = {"model": "local", "choices": [{"message": {"content": good_post}}]}
         with patch("studio_llamacpp.urllib.request.urlopen", return_value=FakeResponse(response)) as call:
             result = generate_llamacpp("Gouvernance cognitive")
@@ -42,10 +51,16 @@ class LlamaCppStudioTests(unittest.TestCase):
         self.assertIn("Gouvernance cognitive", sent["messages"][1]["content"])
 
     def test_single_revision_rescues_short_draft(self):
-        good = ("Une proposition n est pas une autorisation.\n\n"
-                + "Brody formule des propositions, sans autoriser. " * 7
-                + "\n\nKX108 decide du droit d agir dans un cadre formel. " * 6
-                + "\n\nUn executant controle applique seulement l autorisation accordee. " * 3)
+        good = (
+            "Proposer une action ne signifie pas avoir le droit de la realiser.\n\n"
+            "Brody fournit des hypotheses consultatives sur la situation. "
+            "Il peut signaler une incertitude sans transformer son avis en ordre.\n\n"
+            "KX108 tranche selon des contraintes connues et refuse si elles manquent. "
+            "L autorisation est differente du texte produit par le modele.\n\n"
+            "Seul un executant distinct, soumis au perimetre valide, peut agir. "
+            "Cette separation diminue le risque de confusion des responsabilites.\n\n"
+            "Une trace de preuve accompagne le resultat pour permettre son audit."
+        )
         bad = {"model": "local", "choices": [{"message": {"content": "Trop bref."}}]}
         corrected = {"model": "local", "choices": [{"message": {"content": good}}]}
         with patch("studio_llamacpp.urllib.request.urlopen",
