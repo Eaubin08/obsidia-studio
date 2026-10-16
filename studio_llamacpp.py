@@ -56,25 +56,44 @@ def generate_llamacpp(idea, *, network="LinkedIn", source_text="", timeout=180):
             {"role": "user", "content": prompt},
         ],
     }
-    req = urllib.request.Request(
-        _endpoint(), data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json"}, method="POST"
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            data = json.loads(response.read(2_000_000).decode("utf-8"))
-    except (OSError, ValueError, TypeError) as exc:
-        raise EditorialEngineError("llama-server indisponible ou reponse invalide : " + str(exc)[:200]) from exc
-    choices = data.get("choices") if isinstance(data, dict) else None
-    message = choices[0].get("message") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
-    text = message.get("content") if isinstance(message, dict) else None
-    if not isinstance(text, str) or not text.strip():
-        raise EditorialEngineError("llama-server n'a pas retourne de brouillon.")
-    text = text.strip()
-    if (text.lower().startswith("synthese readonly depuis source-pack")
-            or text.startswith("DOMAIN_RACCORD_READONLY")
-            or text.startswith("PRE_REASONING_UNRESOLVED")):
-        raise EditorialEngineError("Diagnostic recu au lieu d'un post.")
+    def call_model(body):
+        req = urllib.request.Request(
+            _endpoint(), data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                result = json.loads(response.read(2_000_000).decode("utf-8"))
+        except (OSError, ValueError, TypeError) as exc:
+            raise EditorialEngineError("llama-server indisponible : " + str(exc)[:200]) from exc
+        choices = result.get("choices") if isinstance(result, dict) else None
+        msg = choices[0].get("message") if isinstance(choices, list) and choices and isinstance(choices[0], dict) else None
+        value = msg.get("content") if isinstance(msg, dict) else None
+        if not isinstance(value, str) or not value.strip():
+            raise EditorialEngineError("Aucun brouillon genere.")
+        return value.strip(), result
+
+    from studio_quality import assess
+    text, data = call_model(payload)
+    quality = assess(text, network.lower())
+    if quality["issues"]:
+        revision = dict(payload)
+        revision["messages"] = payload["messages"] + [
+            {"role": "assistant", "content": text},
+            {"role": "user", "content":
+                "Reecris entierement le post. Corrige exactement ces problemes : "
+                + "; ".join(quality["issues"])
+                + ". Pour LinkedIn, vise 900 a 1300 caracteres, 4 a 6 courts paragraphes "
+                  "separes par une ligne vide. Brody propose ; KX108 autorise ; "
+                  "un executant distinct agit sous autorisation ; receipts tracent. "
+                  "N'invente aucun fait. Ne commence pas par le nom du reseau."},
+        ]
+        revised, revised_data = call_model(revision)
+        if not assess(revised, network.lower())["issues"]:
+            text, data = revised, revised_data
+        else:
+            raise EditorialEngineError("Brouillon refuse apres une revision : "
+                                      + "; ".join(assess(revised, network.lower())["issues"]))
     return {
         "text": text,
         "provenance": {
