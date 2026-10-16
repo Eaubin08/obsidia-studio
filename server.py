@@ -993,7 +993,7 @@ def get_file(name: str):
 @app.get("/api/today")
 def today():
     t, tm = date.today().isoformat(), (date.today() + timedelta(days=1)).isoformat()
-    ps = [p for p in all_posts() if p["status"] != "publié" and p.get("planned")]
+    ps = [p for p in all_posts() if p["status"] in ("validé", "programmé") and p.get("planned")]
     return {"today": [p for p in ps if p["planned"] == t],
             "tomorrow": [p for p in ps if p["planned"] == tm],
             "late": [p for p in ps if p["planned"] < t and p["status"] in ("validé", "programmé")],
