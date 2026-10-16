@@ -15,6 +15,8 @@ def assess(text, network="linkedin"):
         issues.append("Autorite erronee : KX108 decide, la proposition n'autorise rien.")
     if text.upper().startswith(("RESEAU :", "SUJET :")):
         issues.append("Prompt recopie dans le texte.")
+    if "par herself" in text.lower():
+        issues.append("Fragment non francais dans le texte.")
     if network == "linkedin":
         if len(text) < 400:
             issues.append("Post tres court : manque de developpement.")
