@@ -270,6 +270,8 @@ def generate(body: GenIn):
         if not cleaned.strip():
             raise HTTPException(502, "Brouillon llama.cpp vide apres nettoyage.")
         quality = assess_editorial(cleaned, body.network)
+        if any(issue.startswith(("Autorite erronee", "Prompt recopie", "Fragment non francais")) for issue in quality["issues"]):
+            raise HTTPException(422, "Brouillon rejete : " + "; ".join(quality["issues"]))
         return {"raw": "", "text": cleaned, "quality": quality,
                 "provenance": draft["provenance"], "warning": draft["warning"] + (" Vérification éditoriale : " + "; ".join(quality["issues"]) if quality["issues"] else "")}
     if editorial_mode == "studio_local_model":
