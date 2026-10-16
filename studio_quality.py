@@ -17,7 +17,7 @@ def assess(text, network="linkedin"):
         issues.append("Prompt recopie dans le texte.")
     if "par herself" in text.lower():
         issues.append("Fragment non francais dans le texte.")
-    if "kx108" in text.lower() and "consultatif" in text.lower():
+    if re.search(r"kx108[^.!?\\n]{0,65}consultatif|consultatif[^.!?\\n]{0,65}kx108", text, re.I):
         issues.append("Autorite erronee : KX108 ne doit pas etre presente comme consultatif.")
     # Repeated blocks are a known failure mode of small local models.
     normalized = re.sub(r"\s+", " ", text).strip().lower()
