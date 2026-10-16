@@ -20,8 +20,8 @@ def assess(text, network="linkedin"):
     if "kx108" in text.lower() and "consultatif" in text.lower():
         issues.append("Autorite erronee : KX108 ne doit pas etre presente comme consultatif.")
     # Repeated blocks are a known failure mode of small local models.
-    normalized = re.sub(r"\\s+", " ", text).strip().lower()
-    if re.search(r"(.{70,}?)\\1", normalized):
+    normalized = re.sub(r"\s+", " ", text).strip().lower()
+    if re.search(r"(.{70,}?)\1", normalized):
         issues.append("Repetition d un meme passage dans le post.")
     if text.startswith(("# ", "## ", "### ", "\\\\### ")):
         issues.append("Balises Markdown dans l accroche.")
