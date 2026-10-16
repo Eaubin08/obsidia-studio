@@ -1,4 +1,5 @@
 let META = {}, POSTS = [], CUR = null;
+let GENERATED_PROVENANCE = null, GENERATED_QUALITY = null;
 const $ = id => document.getElementById(id);
 const api = async (url, opt = {}) => {
   const r = await fetch(url, {headers: {"Content-Type": "application/json"}, ...opt});
@@ -58,6 +59,8 @@ function render() {
 
 function openPost(id) {
   CUR = POSTS.find(p => p.id === id);
+  GENERATED_PROVENANCE = CUR.provenance || {};
+  GENERATED_QUALITY = CUR.editorial_quality || {};
   $("noPost").style.display = "none"; $("editor").style.display = "grid";
   $("eNet").value = CUR.network; $("eStatus").value = CUR.status; $("eWeek").value = CUR.week || "";
   $("eDay").value = CUR.day || ""; $("eSeries").value = CUR.series || ""; $("ePlanned").value = CUR.planned || ""; $("eTime").value = CUR.time || META.networks[CUR.network]?.time || "";
@@ -93,7 +96,8 @@ function form() {
     series: $("eSeries").value, planned: $("ePlanned").value, hook: $("eHook").value, text: $("eText").value,
     notes: $("eNotes").value, image: CUR.image || "", published: CUR.published || "",
     campaign: CUR.campaign || "", image_idea: CUR.image_idea || "", time: $("eTime").value,
-    template: $("gTpl").value || CUR.template || "", family: CUR.family || ""};
+    template: $("gTpl").value || CUR.template || "", family: CUR.family || "",
+    provenance: GENERATED_PROVENANCE || {}, editorial_quality: GENERATED_QUALITY || {}};
 }
 
 // ------------------------------------------------ vue mensuelle
@@ -347,10 +351,12 @@ async function humanize() {
 async function generate(adapt) {
   const idea = $("gIdea").value.trim();
   if (!idea && !adapt) return toast("Écris d'abord une idée");
-  $("gOut").style.display = "block"; $("gOut").textContent = "Brody prépare le brouillon (Qwen si nécessaire)…";
+  $("gOut").style.display = "block"; $("gOut").textContent = "Génération du brouillon en cours…";
   const r = await api("/api/generate", {method: "POST", body: JSON.stringify({idea: idea || "adapter ce post", network: $("eNet").value, source_text: adapt ? $("eText").value : "", template: $("gTpl").value})});
-  const origin = r.provenance?.source || "ORIGINE_NON_RENSEIGNEE";
-  $("gOut").textContent = "Origine : " + origin + "\nValidation humaine obligatoire · Aucune publication automatique.\n" + (r.warning || "") + (r.raw ? "\n\n" + r.raw : "");
+  GENERATED_PROVENANCE = r.provenance || {};
+  GENERATED_QUALITY = r.quality || {};
+  const origin = GENERATED_PROVENANCE.source || "ORIGINE_NON_RENSEIGNEE";
+  $("gOut").textContent = "Origine : " + origin + "\nValidation humaine obligatoire · Aucune publication automatique.\n" + (r.warning || "") + (GENERATED_QUALITY.issues?.length ? "\nPoints à revoir : " + GENERATED_QUALITY.issues.join("; ") : "") + (r.raw ? "\n\n" + r.raw : "");
   if (r.text) { $("eText").value = r.text; count(); toast("Brouillon placé dans l'éditeur (non enregistré)"); }
 }
 async function makeImage() {
