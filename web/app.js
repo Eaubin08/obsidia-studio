@@ -65,7 +65,9 @@ function openPost(id) {
   $("eNet").value = CUR.network; $("eStatus").value = CUR.status; $("eWeek").value = CUR.week || "";
   $("eDay").value = CUR.day || ""; $("eSeries").value = CUR.series || ""; $("ePlanned").value = CUR.planned || ""; $("eTime").value = CUR.time || META.networks[CUR.network]?.time || "";
   $("eHook").value = CUR.hook || ""; $("eText").value = CUR.text || ""; $("eNotes").value = CUR.notes || "";
-  $("eScore").innerHTML = ""; $("gOut").style.display = "none";
+  $("eScore").innerHTML = "";
+  $("gOut").style.display = "block";
+  $("gOut").textContent = "Provenance enregistrée : " + (GENERATED_PROVENANCE.source || "non renseignée (ancien post)") + (GENERATED_PROVENANCE.model ? " · " + GENERATED_PROVENANCE.model : "") + "\nValidation humaine obligatoire.";
   $("iL1").value = CUR.img_l1 || ""; $("iL2").value = CUR.img_l2 || "";
   if (CUR.image_idea && !CUR.text) $("gIdea").value = (CUR.hook ? CUR.hook + " — " : "") + (CUR.notes || "");
   showImg(); count(); tplOptions(); if (CUR.template) $("gTpl").value = CUR.template; tplInfo();
