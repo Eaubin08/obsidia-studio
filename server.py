@@ -121,6 +121,8 @@ class PostIn(BaseModel):
     time: str = ""
     template: str = ""
     family: str = ""
+    provenance: dict = {}
+    editorial_quality: dict = {}
 
 
 class GenIn(BaseModel):
