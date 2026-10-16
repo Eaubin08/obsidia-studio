@@ -8,6 +8,10 @@ class EditorialQualityTests(unittest.TestCase):
         self.assertFalse(assess(wrong)["ok"])
         self.assertTrue(any("KX108" in x for x in assess(wrong)["issues"]))
 
+    def test_flags_kx108_consultative_misrepresentation(self):
+        text = "KX108 reste consultatif et tranche." + " Fin." * 100
+        self.assertTrue(any("KX108" in i for i in assess(text)["issues"]))
+
     def test_rejects_false_execution_ban(self):
         bad = "L'IA ne doit jamais exécuter."
         self.assertFalse(assess(bad)["ok"])
