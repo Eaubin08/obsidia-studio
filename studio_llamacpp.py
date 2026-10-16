@@ -43,7 +43,7 @@ def generate_llamacpp(idea, *, network="LinkedIn", source_text="", timeout=180):
         "Reste descriptif sur le reste ; ne publie rien et n'effectue "
         "aucune action externe. Retourne seulement le brouillon."
     )
-    prompt = "RESEAU : " + str(network) + "\nSUJET : " + idea
+    prompt = "Redige une publication pour " + str(network) + " sur le theme suivant : " + idea
     if source_text:
         prompt += "\nTEXTE UTILISATEUR NON VERIFIE :\n" + source_text
     payload = {
