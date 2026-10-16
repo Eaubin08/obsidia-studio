@@ -36,14 +36,14 @@ def generate_llamacpp(idea, *, network="LinkedIn", source_text="", timeout=180):
         "les repetitions, les introductions comme 'Sur LinkedIn je partage', "
         "et les conclusions generiques. Pour une question de gouvernance IA, "
         "distingue comprendre, proposer, autoriser, executer et prouver ; "
-        "KX108 est seul decisionnaire, Brody reste consultatif. Ne presente "
+        "Brody comprend et propose sans autoriser. KX108 est le seul organe de decision et d'autorisation. L'execution est possible uniquement apres autorisation controlee. Proof et receipts tracent la decision. KX108 n'est pas un expert ou conseiller : il tranche. Ne presente "
         "pas ces principes comme des resultats experimentalement prouves. "
         "N'invente aucun test, chiffre, citation, client ou realisation. "
         "Les faits du texte utilisateur sont non verifies. "
         "Reste descriptif sur le reste ; ne publie rien et n'effectue "
         "aucune action externe. Retourne seulement le brouillon."
     )
-    prompt = "Redige une publication pour " + str(network) + " sur le theme suivant : " + idea
+    prompt = "Publication " + str(network) + ". Theme : " + idea + "\nCommence directement par une accroche ; ne commence pas par le nom du reseau."
     if source_text:
         prompt += "\nTEXTE UTILISATEUR NON VERIFIE :\n" + source_text
     payload = {
