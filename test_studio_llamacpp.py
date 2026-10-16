@@ -51,7 +51,7 @@ class LlamaCppStudioTests(unittest.TestCase):
         with patch("studio_llamacpp.urllib.request.urlopen",
                    side_effect=[FakeResponse(bad), FakeResponse(corrected)]) as call:
             result = generate_llamacpp("Gouvernance des actions")
-        self.assertEqual(result["text"], good)
+        self.assertEqual(result["text"], good.strip())
         self.assertEqual(call.call_count, 2)
 
     def test_refuses_after_one_unsuccessful_revision(self):
