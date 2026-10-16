@@ -42,10 +42,10 @@ class LlamaCppStudioTests(unittest.TestCase):
         self.assertIn("Gouvernance cognitive", sent["messages"][1]["content"])
 
     def test_single_revision_rescues_short_draft(self):
-        good = ("Une proposition n est pas une autorisation.\\n\\n"
+        good = ("Une proposition n est pas une autorisation.\n\n"
                 + "Brody formule des propositions, sans autoriser. " * 7
-                + "\\n\\nKX108 decide du droit d agir dans un cadre formel. " * 6
-                + "\\n\\nUn executant controle applique seulement l autorisation accordee. " * 3)
+                + "\n\nKX108 decide du droit d agir dans un cadre formel. " * 6
+                + "\n\nUn executant controle applique seulement l autorisation accordee. " * 3)
         bad = {"model": "local", "choices": [{"message": {"content": "Trop bref."}}]}
         corrected = {"model": "local", "choices": [{"message": {"content": good}}]}
         with patch("studio_llamacpp.urllib.request.urlopen",
