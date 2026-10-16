@@ -13,6 +13,8 @@ def assess(text, network="linkedin"):
         issues.append("Autorite erronee : l'execution est possible apres autorisation controlee.")
     if re.search(r"(?:l'ia|une ia)\s+doit\s+comprendre,?\s+proposer\s+et\s+autoriser", text, re.I):
         issues.append("Autorite erronee : KX108 decide, la proposition n'autorise rien.")
+    if text.upper().startswith(("RESEAU :", "SUJET :")):
+        issues.append("Prompt recopie dans le texte.")
     if network == "linkedin":
         if len(text) < 400:
             issues.append("Post tres court : manque de developpement.")
