@@ -43,8 +43,10 @@ def _call(payload, timeout):
     req = urllib.request.Request(
         _endpoint(config()), data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", "X-API-Key": key}, method="POST")
+    # Never forward the API key to a redirect target or an environment proxy.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), E11NoRedirect())
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with opener.open(req, timeout=timeout) as response:
             return json.loads(response.read(5_000_000).decode("utf-8"))
     except (OSError, ValueError, TypeError, urllib.error.URLError) as exc:
         raise InferenceError("API Brody indisponible ou réponse invalide : " + str(exc)[:240]) from exc
