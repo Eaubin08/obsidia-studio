@@ -259,5 +259,32 @@ class LocalAIContractTests(unittest.TestCase):
             self.assertEqual(st["provider"], "obsidia_brody")
 
 
+
+class BrodyNativeAuthTests(unittest.TestCase):
+    def test_native_requires_key_before_network(self):
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_API_KEY": ""}):
+            with patch.object(studio_ai.urllib.request, "urlopen") as open_mock:
+                with self.assertRaisesRegex(studio_ai.InferenceError, "AUTH_REQUIRED"):
+                    studio_ai._call({"message": "test"}, 3)
+                open_mock.assert_not_called()
+
+    def test_native_uses_existing_brody_api_key(self):
+        captured = []
+        class DummyResponse:
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+            def read(self, *_args): return b'{"response": "ok"}'
+        def fake_open(req, timeout):
+            captured.append((req, timeout))
+            return DummyResponse()
+        with patch.dict(os.environ, {"OBSIDIA_STUDIO_API_KEY": "test-secret-value",
+                                      "OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
+            with patch.object(studio_ai.urllib.request, "urlopen", side_effect=fake_open):
+                value = studio_ai._call({"message": "test"}, 3)
+        self.assertEqual(value["response"], "ok")
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0][0].get_header("X-api-key"), "test-secret-value")
+        self.assertEqual(captured[0][0].full_url, "http://127.0.0.1:8000/api/brody/chat")
+
 if __name__ == "__main__":
     unittest.main()
