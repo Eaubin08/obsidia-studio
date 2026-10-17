@@ -263,10 +263,10 @@ class LocalAIContractTests(unittest.TestCase):
 class BrodyNativeAuthTests(unittest.TestCase):
     def test_native_requires_key_before_network(self):
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_API_KEY": ""}):
-            with patch.object(studio_ai.urllib.request, "urlopen") as open_mock:
+            with patch.object(studio_ai.urllib.request, "build_opener") as build_mock:
                 with self.assertRaisesRegex(studio_ai.InferenceError, "AUTH_REQUIRED"):
                     studio_ai._call({"message": "test"}, 3)
-                open_mock.assert_not_called()
+                build_mock.assert_not_called()
 
     def test_native_uses_existing_brody_api_key(self):
         captured = []
@@ -279,8 +279,12 @@ class BrodyNativeAuthTests(unittest.TestCase):
             return DummyResponse()
         with patch.dict(os.environ, {"OBSIDIA_STUDIO_API_KEY": "test-secret-value",
                                       "OBSIDIA_STUDIO_BRODY_URL": "http://127.0.0.1:8000"}):
-            with patch.object(studio_ai.urllib.request, "urlopen", side_effect=fake_open):
+            with patch.object(studio_ai.urllib.request, "build_opener") as build_mock:
+                build_mock.return_value.open.side_effect = fake_open
                 value = studio_ai._call({"message": "test"}, 3)
+                handlers = build_mock.call_args.args
+                self.assertTrue(any(isinstance(h, studio_ai.E11NoRedirect) for h in handlers))
+                self.assertTrue(any(isinstance(h, studio_ai.urllib.request.ProxyHandler) and not h.proxies for h in handlers))
         self.assertEqual(value["response"], "ok")
         self.assertEqual(len(captured), 1)
         self.assertEqual(captured[0][0].get_header("X-api-key"), "test-secret-value")
