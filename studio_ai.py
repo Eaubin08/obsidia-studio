@@ -35,9 +35,14 @@ def _endpoint(cfg):
 
 
 def _call(payload, timeout):
+    # The native Brody endpoint uses the same authentication as the proven
+    # read-only E11 client. Never disable auth or log credentials.
+    key = os.getenv("OBSIDIA_STUDIO_API_KEY", "")
+    if not key.strip() or "\r" in key or "\n" in key:
+        raise InferenceError("AUTH_REQUIRED: clé Brody Studio absente ou invalide.")
     req = urllib.request.Request(
         _endpoint(config()), data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"}, method="POST")
+        headers={"Content-Type": "application/json", "X-API-Key": key}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             return json.loads(response.read(5_000_000).decode("utf-8"))
