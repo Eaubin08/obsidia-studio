@@ -13,11 +13,12 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
@@ -126,10 +127,20 @@ class PostIn(BaseModel):
 
 
 class GenIn(BaseModel):
+    internal_observation_id: str | None = Field(default=None, min_length=1, max_length=128, pattern=r'^[A-Za-z0-9][A-Za-z0-9._:-]*$')
+    editorial_version: Literal["V1", "V2"] = "V1"
     idea: str
     network: str = "linkedin"
     source_text: str = ""
     template: str = ""
+
+    @model_validator(mode='before')
+    @classmethod
+    def reject_client_observation_evidence(cls, value):
+        if isinstance(value, dict) and set(value).intersection({'internal_observation', 'internal_observation_reference',
+                'internal_observation_verification', 'internal_observation_catalog'}):
+            raise ValueError('SERVER_OWNED_OBSERVATION_REQUIRED')
+        return value
 
 
 class ImageIn(BaseModel):
@@ -230,6 +241,51 @@ def humanize(body: DocIn):
 
 
 # ---------------------------------------------------------------- génération (Brody / Obsidia)
+class E11ExperimentInput(BaseModel):
+    model_config = {"extra": "forbid", "strict": True}
+    text: str
+
+
+@app.post("/api/experiments/e11/context", openapi_extra={"requestBody": {"required": True,
+    "content": {"application/json": {"schema": E11ExperimentInput.model_json_schema()}}}})
+async def experiment_e11_context(request: Request):
+    """Context laboratory only: never enters /api/generate or the post/publication paths."""
+    import ipaddress
+    if os.getenv("OBSIDIA_STUDIO_ENABLE_E11_LOT1") != "1":
+        raise HTTPException(404, "E11_LOT1_DISABLED")
+    try:
+        local = request.client is not None and ipaddress.ip_address(request.client.host).is_loopback
+    except ValueError:
+        local = False
+    if not local:
+        raise HTTPException(403, "LOCAL_ONLY")
+    origin = request.headers.get("origin")
+    if origin is not None and origin != str(request.base_url).rstrip("/"):
+        raise HTTPException(403, "ORIGIN_REFUSED")
+    from studio_e11_contract import ContractError, parse_envelope
+    from starlette.concurrency import run_in_threadpool
+    raw = bytearray()
+    async for chunk in request.stream():
+        if len(raw) + len(chunk) > 65_536:
+            raise HTTPException(413, "INPUT_TOO_LARGE")
+        raw.extend(chunk)
+    try:
+        parsed = parse_envelope(bytes(raw))
+    except ContractError:
+        raise HTTPException(400, "INVALID_JSON") from None
+    try:
+        body = E11ExperimentInput.model_validate(parsed)
+    except ValueError:
+        raise HTTPException(422, "INVALID_INPUT") from None
+    result = await run_in_threadpool(studio_ai.run_e11_experiment, body.text)
+    code = result["error_code"]
+    status = (200 if result["consumer_status"] in ("CONTEXT_AVAILABLE", "CONTEXT_LIMITED") else
+              503 if result["consumer_status"] == "UNAVAILABLE" or code in (
+                  "HOLD_ACTIVATION", "AUTH_REQUIRED", "JOURNAL_UNAVAILABLE") else
+              400 if code == "INVALID_INPUT" else 409)
+    return JSONResponse(result, status_code=status, headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
+
+
 @app.post("/api/generate")
 def generate(body: GenIn):
     net = NETWORKS.get(body.network)
@@ -257,6 +313,8 @@ def generate(body: GenIn):
     # for Studio. It is NOT a fallback from a denied Cognitive Ingress call.
     # The original governed ingress remains fail-closed and unchanged.
     editorial_mode = os.getenv("OBSIDIA_STUDIO_EDITORIAL_MODE", "governed_ingress")
+    if editorial_mode not in ("governed_ingress", "brody_native"):
+        raise HTTPException(503, "BRODY_AUTHOR_REQUIRED : modèle auxiliaire ou gabarit refusé comme rédacteur.")
     if editorial_mode == "studio_llamacpp":
         # Explicit local Studio mode: never a fallback after a governed HOLD.
         from studio_llamacpp import generate_llamacpp, EditorialEngineError
@@ -295,7 +353,17 @@ def generate(body: GenIn):
         return {"raw": "", "text": draft["text"], "provenance": draft["provenance"], "warning": draft["warning"]}
     if editorial_mode not in ("governed_ingress", "brody_native"):
         raise HTTPException(503, "Mode éditorial Studio inconnu.")
-    use_ingress = editorial_mode == "governed_ingress" and os.getenv("OBSIDIA_STUDIO_USE_INGRESS") == "1"
+    use_ingress = editorial_mode == "governed_ingress"
+    observation_id = getattr(body, 'internal_observation_id', None)
+    if observation_id is not None and use_ingress:
+        raise HTTPException(409, 'OBSERVATION_NATIVE_ENDPOINT_REQUIRED')
+    editorial_version = getattr(body, "editorial_version", "V1")
+    if editorial_version not in ("V1", "V2"):
+        raise HTTPException(422, "EDITORIAL_VERSION_INVALID")
+    if editorial_version == "V2" and use_ingress:
+        raise HTTPException(409, "V2_NATIVE_ENDPOINT_REQUIRED")
+    if use_ingress and os.getenv("OBSIDIA_STUDIO_USE_INGRESS") != "1":
+        raise HTTPException(503, "Ingress non activé : aucun basculement automatique vers Brody natif.")
     if editorial_mode == "brody_native" and os.getenv("OBSIDIA_STUDIO_ALLOW_BRODY_NATIVE") != "1":
         raise HTTPException(503, "Mode Brody natif désactivé : activation explicite requise.")
     try:
@@ -318,34 +386,19 @@ def generate(body: GenIn):
                 subject, network=net["label"], source_text=body.source_text
             )
         else:
-            routed_prompt = _studio_context() + prompt
+            # Historical local documents are evidence, not editorial directives.
+            # Send the user's subject and explicitly supplied sources only.
+            from editorial_intent import explanatory_editorial_request
+            routed_prompt = explanatory_editorial_request(body.idea, net["label"], body.source_text)
         if use_ingress:
             out, provenance = studio_ai.generate(routed_prompt, return_receipt=True)
         else:
-            out = studio_ai.generate(routed_prompt, use_ingress=False)
-            provenance = {"source": "BRODY_DIRECT_UNVERIFIED", "human_approval_required": True,
-                          "publication_permitted": False, "brody_post_model_synthesis_proven": False}
+            out, provenance = studio_ai.generate(routed_prompt, return_receipt=True, use_ingress=False,
+                                                **({"editorial_version": "V2"} if editorial_version == "V2" else {}),
+                                                **({'internal_observation_id':observation_id} if observation_id is not None else {}))
     except studio_ai.InferenceError as exc:
-        # Never retry a blocked cognitive request through another model.
-        # When actual source text was supplied by the user, Studio can still
-        # offer that exact text as an explicitly non-generated review draft.
-        detail = str(exc)
-        if "brody_status=GOVERNANCE_BOUNDARY" in detail:
-            if body.source_text.strip():
-                return {
-                    "raw": "",
-                    "text": clean_editorial_draft(body.source_text),
-                    "provenance": {
-                        "source": "USER_SOURCE_TEXT_ONLY",
-                        "brody_post_model_synthesis_proven": False,
-                        "human_approval_required": True,
-                        "publication_permitted": False,
-                        "cognitive_gate": "GOVERNANCE_BOUNDARY",
-                    },
-                    "warning": "Génération IA bloquée par gouvernance. Texte original uniquement : aucune reformulation IA.",
-                }
-            raise HTTPException(409, "Génération IA retenue par la gouvernance cognitive. Aucun brouillon inventé. Ajoutez un texte source pour conserver uniquement votre texte, ou corrigez la classification d'autorité en amont.") from exc
-        raise HTTPException(503, detail) from exc
+        # A refusal never becomes copied user text or another writer's draft.
+        raise HTTPException(409, str(exc)) from None
     m = re.search(r"<POST>\s*(.*?)\s*</POST>", out, re.S)
     if not m or not m.group(1).strip():
         raise HTTPException(502, "Brody joignable mais aucune publication <POST> reçue. Réponse consultative non exploitable, aucun brouillon généré.")

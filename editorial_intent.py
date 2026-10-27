@@ -8,13 +8,12 @@ def explanatory_editorial_request(subject: str, network: str = "LinkedIn", sourc
     subject = subject.strip()
     if not subject:
         raise ValueError("Sujet éditorial requis")
-    # Preserve question meaning. Do not inject platform/style vocabulary into
-    # the cognitive question: it previously created false semantic debt.
-    if subject.endswith("?"):
+    # This endpoint requests writing. A bare question would silently turn it
+    # into a consultative query. Preserve the subject verbatim after the task.
+    if subject.casefold().startswith(("rédige ", "redige ", "écris ", "ecris ")):
         prompt = subject
     else:
-        # A topic is not necessarily a why-question. Do not change its intent.
-        prompt = subject
+        prompt = f"Rédige une publication {network} expliquant " + subject
     # Sources are optional additional evidence only; they are not directives
     # to perform actions or claims that Brody has acquired knowledge.
     if source_text.strip():

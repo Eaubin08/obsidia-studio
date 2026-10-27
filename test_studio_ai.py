@@ -3,6 +3,17 @@ import os
 import unittest
 from unittest.mock import patch
 import studio_ai
+import json
+from pathlib import Path
+
+def public_native():
+    path=Path(__file__).parent/'data/experiments/internal_observation_integration_20261024/public_fixture_False.json'
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def native_result(**fields):
+    return {"readonly": True, "decision_authority": "KX108_ONLY",
+            "source": "REAL_BRODY_RUNTIME_NO_GRAPHITI", **fields}
 
 
 class LocalAIContractTests(unittest.TestCase):
@@ -21,21 +32,22 @@ class LocalAIContractTests(unittest.TestCase):
                 studio_ai._endpoint({"base_url": url})
 
     def test_brody_first(self):
-        with patch.object(studio_ai, "_call", return_value={"response": "<POST>Bonjour</POST>", "readonly": True}) as call:
-            self.assertEqual(studio_ai.generate("Rédige"), "<POST>Bonjour</POST>")
+        payload = public_native()
+        brief = payload['pre_reasoning_snapshot']['user_message']
+        with patch.object(studio_ai, '_call', return_value=payload) as call:
+            self.assertEqual(studio_ai.generate(brief), payload['response'])
         data = call.call_args.args[0]
-        self.assertIn("Rédige", data["message"])
-        self.assertIn("<POST>", data["message"])
-        self.assertIn("sans action externe ni publication", data["message"])
-        self.assertFalse(data["allow_provider"])
-        self.assertEqual(data["language"], "fr")
+        self.assertEqual(data['message'], brief)
+        self.assertFalse(data['allow_provider'])
+        self.assertFalse(data['allow_local_model'])
+        self.assertEqual(data['language'], 'fr')
 
     def test_native_request_preserves_topic_and_no_fabrication(self):
         subject = "Pourquoi comprendre avant d'agir ?"
         message = studio_ai._native_editorial_request(subject)
         self.assertIn(subject, message)
-        self.assertIn("n'invente ni chiffres", message)
-        self.assertIn("\n\nSUJET / CONTEXTE FOURNI :\n", message)
+        self.assertTrue(message.startswith("Rédige une publication LinkedIn expliquant "))
+        self.assertNotIn("ALLOW", message)
         with self.assertRaises(studio_ai.InferenceError):
             studio_ai._native_editorial_request(" ")
 
@@ -61,6 +73,7 @@ class LocalAIContractTests(unittest.TestCase):
             "response_md": "Ce symbole reste non résolu avant raisonnement.",
             "final_answer_source": "TERMINAL_DIALOGUE_IDENTITY",
         }
+        payload = native_result(**payload)
         with patch.object(studio_ai, "_call", return_value=payload):
             with self.assertRaisesRegex(studio_ai.InferenceError, "TERMINAL_DIALOGUE_IDENTITY"):
                 studio_ai.generate("Rédige un post")
@@ -76,13 +89,12 @@ class LocalAIContractTests(unittest.TestCase):
                 studio_ai.generate("Pourquoi comprendre avant d'agir ?")
 
     def test_structured_post_preferred_over_identity(self):
-        payload = {
-            "response": "Je suis Brody.",
-            "final_answer": "Je suis Brody.",
-            "response_md": "<POST>Brouillon validable humainement.</POST>",
-        }
-        with patch.object(studio_ai, "_call", return_value=payload):
-            self.assertEqual(studio_ai.generate("Rédige"), payload["response_md"])
+        # A POST in only one response field no longer proves native lineage.
+        payload = native_result(response='Je suis Brody.', final_answer='Je suis Brody.',
+                                response_md='<POST>Brouillon non attesté.</POST>')
+        with patch.object(studio_ai, '_call', return_value=payload):
+            with self.assertRaises(studio_ai.InferenceError):
+                studio_ai.generate('Rédige')
 
     def test_non_empty_post_only(self):
         with patch.object(studio_ai, "_call", return_value={"response": "<POST></POST>"}):
@@ -90,21 +102,18 @@ class LocalAIContractTests(unittest.TestCase):
                 studio_ai.generate("Rédige")
 
     def test_explicit_native_mode_never_calls_ingress(self):
-        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1"}):
-            with patch.object(studio_ai, "_ingress_call") as ingress:
-                with patch.object(studio_ai, "_call", return_value={
-                    "response": "<POST>Texte de Brody à relire.</POST>",
-                    "readonly": True, "emits_act": False,
-                }) as native:
-                    actual = studio_ai.generate("Proposition", use_ingress=False)
-                    self.assertEqual(actual, "<POST>Texte de Brody à relire.</POST>")
-                    native.assert_called_once()
-                    ingress.assert_not_called()
+        payload = public_native()
+        with patch.dict(os.environ, {'OBSIDIA_STUDIO_USE_INGRESS':'1'}):
+            with patch.object(studio_ai, '_ingress_call') as ingress:
+                with patch.object(studio_ai, '_call', return_value=payload) as call:
+                    self.assertEqual(studio_ai.generate(payload['pre_reasoning_snapshot']['user_message'], use_ingress=False), payload['response'])
+                    call.assert_called_once(); ingress.assert_not_called()
 
     def test_ingress_opt_in_off_by_default(self):
-        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "0"}):
-            with patch.object(studio_ai, "_call", return_value={"response": "<POST>Bonjour</POST>"}) as call:
-                self.assertEqual(studio_ai.generate("Rédige"), "<POST>Bonjour</POST>")
+        payload = public_native()
+        with patch.dict(os.environ, {'OBSIDIA_STUDIO_USE_INGRESS':'0'}):
+            with patch.object(studio_ai, '_call', return_value=payload) as call:
+                self.assertEqual(studio_ai.generate(payload['pre_reasoning_snapshot']['user_message']), payload['response'])
                 call.assert_called_once()
 
     def test_ingress_requires_explicit_enable(self):
@@ -119,10 +128,10 @@ class LocalAIContractTests(unittest.TestCase):
             with patch.object(studio_ai, "_ingress_call", return_value={
                 "status": "HOLD", "response": "no draft", "emits_act": False
             }):
-                with self.assertRaisesRegex(studio_ai.InferenceError, "sans artefact"):
+                with self.assertRaisesRegex(studio_ai.InferenceError, "GOVERNANCE_REFUSED"):
                     studio_ai.generate("Rédige")
 
-    def test_verified_qwen_ingress_returns_unapproved_draft(self):
+    def test_verified_qwen_ingress_is_not_a_brody_draft(self):
         payload = {
             "status": "READY_READONLY", "readonly": True, "advisory_only": True,
             "decision_authority": "KX108_ONLY", "allowed_to_act": False,
@@ -141,8 +150,8 @@ class LocalAIContractTests(unittest.TestCase):
         }
         env = {"OBSIDIA_STUDIO_USE_INGRESS": "1", "OBSIDIA_STUDIO_ENABLE_INGRESS": "1"}
         with patch.dict(os.environ, env), patch.object(studio_ai, "_ingress_call", return_value=payload):
-            self.assertIn("<POST>", studio_ai.generate("Rédige"))
-            self.assertIn("Proposition sur", studio_ai.generate("Rédige"))
+            with self.assertRaises(studio_ai.InferenceError):
+                studio_ai.generate("Rédige")
         for change in (
             {"local_model_stage": {**payload["local_model_stage"], "evidence_applied": False}},
             {"route_decision": {**payload["route_decision"], "fail_closed_hold": True}},
@@ -171,7 +180,8 @@ class LocalAIContractTests(unittest.TestCase):
         }
         env = {"OBSIDIA_STUDIO_USE_INGRESS": "1", "OBSIDIA_STUDIO_ENABLE_INGRESS": "1"}
         with patch.dict(os.environ, env), patch.object(studio_ai, "_ingress_call", return_value=payload):
-            self.assertIn("Texte de Brody seul", studio_ai.generate("Rédige"))
+            with self.assertRaises(studio_ai.InferenceError):
+                studio_ai.generate("Rédige")
         for bad in ({"brody_sufficiency": {**payload["brody_sufficiency"], "sufficient": False}},
                     {"brody_sufficiency": {**payload["brody_sufficiency"], "contradictions": ["ACTION"]}},
                     {"local_model_stage": {"model_call_used": True}},
@@ -205,32 +215,18 @@ class LocalAIContractTests(unittest.TestCase):
         for payload, expected in ((brody, "BRODY_NATIVE"), (qwen, "GOVERNED_MODEL_PROJECTION")):
             with self.subTest(expected=expected), patch.dict(os.environ, env):
                 with patch.object(studio_ai, "_ingress_call", return_value=payload):
-                    artifact, receipt = studio_ai.generate("Question", return_receipt=True)
-                    self.assertIn("<POST>", artifact)
-                    self.assertEqual(receipt["source"], expected)
-                    self.assertFalse(receipt["brody_post_model_synthesis_proven"])
-                    self.assertTrue(receipt["human_approval_required"])
-                    self.assertFalse(receipt["publication_permitted"])
+                    # Neither a source label nor sufficient plain text proves a
+                    # public editorial plan/realization. Both stay rejected.
+                    with self.assertRaises(studio_ai.InferenceError):
+                        studio_ai.generate("Question", return_receipt=True)
 
     def test_real_post_wrapper_uses_newlines(self):
-        result = {
-            "status": "READY_READONLY", "readonly": True,
-            "decision_authority": "KX108_ONLY",
-            "route_decision": {"router_status": "ROUTER_OK", "fail_closed_hold": False,
-                               "gate_verdict": "ALLOW"},
-            "brody_sufficiency": {
-                "status": "BRODY_SUFFICIENT", "sufficient": True,
-                "next_stage": "LOCAL_STACK_RESULT", "brody_boundary_ok": True,
-                "output_contract_ok": True, "contradictions": [], "risk_flags": [],
-            },
-            "local_model_stage": {"model_call_used": False},
-            "final_response": "Brouillon à relire.",
-        }
-        with patch.dict(os.environ, {"OBSIDIA_STUDIO_USE_INGRESS": "1"}):
-            with patch.object(studio_ai, "_ingress_call", return_value=result):
-                output = studio_ai.generate("Sujet")
-        self.assertEqual(output, "<POST>\nBrouillon à relire.\n</POST>")
-        self.assertNotIn(r"\\n", output)
+        payload = public_native()
+        with patch.object(studio_ai, '_call', return_value=payload):
+            output = studio_ai.generate(payload['pre_reasoning_snapshot']['user_message'], use_ingress=False)
+        self.assertEqual(output, payload['response'])
+        self.assertIn('\n\n', output)
+        self.assertNotIn(r'\n', output)
 
     def test_true_governance_boundary_is_never_promoted_to_a_draft(self):
         result = {
